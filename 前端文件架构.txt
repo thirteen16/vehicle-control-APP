@@ -1,0 +1,131 @@
+app/
+├── src/main/
+│   ├── java/com/example/carcontrolapp/
+│   │   ├── App.kt
+│   │   │
+│   │   ├── common/                     # 通用常量、结果类、工具
+│   │   │   ├── Constants.kt
+│   │   │   ├── ResultState.kt
+│   │   │   └── Extensions.kt
+│   │   │
+│   │   ├── data/                       # 数据层
+│   │   │   ├── model/                  # 数据模型
+│   │   │   │   ├── request/
+│   │   │   │   │   ├── LoginRequest.kt
+│   │   │   │   │   ├── RegisterRequest.kt
+│   │   │   │   │   └── CommandRequest.kt
+│   │   │   │   ├── response/
+│   │   │   │   │   ├── ApiResponse.kt
+│   │   │   │   │   ├── LoginResponse.kt
+│   │   │   │   │   ├── VehicleStateResponse.kt
+│   │   │   │   │   ├── VehicleLocationResponse.kt
+│   │   │   │   │   ├── CommandResultResponse.kt
+│   │   │   │   │   └── WsMessage.kt
+│   │   │   │   └── entity/
+│   │   │   │       ├── User.kt
+│   │   │   │       ├── Vehicle.kt
+│   │   │   │       └── CommandRecord.kt
+│   │   │   │
+│   │   │   ├── remote/                 # 远程数据源
+│   │   │   │   ├── api/
+│   │   │   │   │   ├── AuthApi.kt
+│   │   │   │   │   ├── VehicleApi.kt
+│   │   │   │   │   └── CommandApi.kt
+│   │   │   │   ├── ws/
+│   │   │   │   │   ├── AppWebSocketClient.kt
+│   │   │   │   │   └── WsEventListener.kt
+│   │   │   │   └── interceptor/
+│   │   │   │       ├── AuthInterceptor.kt
+│   │   │   │       └── LoggingInterceptor.kt
+│   │   │   │
+│   │   │   ├── local/                  # 本地存储
+│   │   │   │   ├── TokenStore.kt
+│   │   │   │   ├── UserStore.kt
+│   │   │   │   ├── SelectedVehicleStore.kt
+│   │   │   │   └── PinStore.kt
+│   │   │   │
+│   │   │   └── repository/             # 仓库层
+│   │   │       ├── AuthRepository.kt
+│   │   │       ├── VehicleRepository.kt
+│   │   │       ├── CommandRepository.kt
+│   │   │       └── RealtimeRepository.kt
+│   │   │
+│   │   ├── di/                         # 依赖注入
+│   │   │   ├── NetworkModule.kt
+│   │   │   ├── RepositoryModule.kt
+│   │   │   └── StorageModule.kt
+│   │   │
+│   │   ├── ui/                         # 表现层
+│   │   │   ├── auth/
+│   │   │   │   ├── login/
+│   │   │   │   │   ├── LoginActivity.kt
+│   │   │   │   │   ├── LoginViewModel.kt
+│   │   │   │   │   └── LoginUiState.kt
+│   │   │   │   ├── register/
+│   │   │   │   │   ├── RegisterActivity.kt
+│   │   │   │   │   ├── RegisterViewModel.kt
+│   │   │   │   │   └── RegisterUiState.kt
+│   │   │   │   └── forget/
+│   │   │   │       ├── ForgetPasswordActivity.kt
+│   │   │   │       └── ForgetPasswordViewModel.kt
+│   │   │   │
+│   │   │   ├── pin/
+│   │   │   │   ├── PinVerifyActivity.kt
+│   │   │   │   ├── PinSetupActivity.kt
+│   │   │   │   └── PinViewModel.kt
+│   │   │   │
+│   │   │   ├── main/
+│   │   │   │   ├── MainActivity.kt
+│   │   │   │   ├── MainViewModel.kt
+│   │   │   │   └── MainTabState.kt
+│   │   │   │
+│   │   │   ├── home/
+│   │   │   │   ├── HomeFragment.kt
+│   │   │   │   ├── HomeViewModel.kt
+│   │   │   │   └── HomeUiState.kt
+│   │   │   │
+│   │   │   ├── vehicle/
+│   │   │   │   ├── list/
+│   │   │   │   │   ├── VehicleListFragment.kt
+│   │   │   │   │   ├── VehicleListViewModel.kt
+│   │   │   │   │   └── VehicleListUiState.kt
+│   │   │   │   ├── detail/
+│   │   │   │   │   ├── VehicleDetailFragment.kt
+│   │   │   │   │   ├── VehicleDetailViewModel.kt
+│   │   │   │   │   └── VehicleDetailUiState.kt
+│   │   │   │   └── location/
+│   │   │   │       ├── VehicleLocationFragment.kt
+│   │   │   │       └── VehicleLocationViewModel.kt
+│   │   │   │
+│   │   │   ├── control/
+│   │   │   │   ├── ControlFragment.kt
+│   │   │   │   ├── ControlViewModel.kt
+│   │   │   │   └── ControlUiState.kt
+│   │   │   │
+│   │   │   ├── command/
+│   │   │   │   ├── CommandHistoryFragment.kt
+│   │   │   │   ├── CommandResultDialog.kt
+│   │   │   │   └── CommandViewModel.kt
+│   │   │   │
+│   │   │   └── profile/
+│   │   │       ├── ProfileFragment.kt
+│   │   │       └── ProfileViewModel.kt
+│   │   │
+│   │   └── utils/
+│   │       ├── JwtParser.kt
+│   │       ├── TimeUtils.kt
+│   │       └── ToastUtils.kt
+│   │
+│   ├── res/
+│   │   ├── layout/
+│   │   ├── drawable/
+│   │   ├── mipmap/
+│   │   ├── values/
+│   │   ├── values-night/
+│   │   ├── menu/
+│   │   └── navigation/
+│   │
+│   └── AndroidManifest.xml
+│
+├── build.gradle.kts
+└── proguard-rules.pro
