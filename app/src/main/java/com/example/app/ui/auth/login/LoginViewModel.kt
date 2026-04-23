@@ -27,6 +27,7 @@ class LoginViewModel(
                 rememberedAccount = info.account,
                 rememberedPassword = info.password,
                 rememberPassword = info.rememberPassword,
+                autoLoginEnabled = info.autoLoginEnabled,
                 rememberedInfoLoaded = true
             )
         }
@@ -34,7 +35,7 @@ class LoginViewModel(
 
     fun checkAutoLogin() {
         viewModelScope.launch {
-            if (authRepository.hasSavedToken()) {
+            if (authRepository.canAutoLogin()) {
                 _uiState.value = _uiState.value?.copy(autoLogin = true)
             }
         }
@@ -43,7 +44,8 @@ class LoginViewModel(
     fun login(
         account: String,
         password: String,
-        rememberPassword: Boolean
+        rememberPassword: Boolean,
+        autoLoginEnabled: Boolean
     ) {
         val trimAccount = account.trim()
         val trimPassword = password.trim()
@@ -58,14 +60,18 @@ class LoginViewModel(
             return
         }
 
-        _uiState.value = _uiState.value?.copy(isLoading = true, errorMessage = null)
+        _uiState.value = _uiState.value?.copy(
+            isLoading = true,
+            errorMessage = null
+        )
 
         viewModelScope.launch {
             when (
                 val result = authRepository.login(
                     account = trimAccount,
                     password = trimPassword,
-                    rememberPassword = rememberPassword
+                    rememberPassword = rememberPassword,
+                    autoLoginEnabled = autoLoginEnabled
                 )
             ) {
                 is ResultState.Success -> {

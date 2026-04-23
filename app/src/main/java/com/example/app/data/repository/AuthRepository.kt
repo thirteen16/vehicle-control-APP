@@ -20,6 +20,11 @@ class AuthRepository(
         return !tokenStore.getToken().isNullOrBlank()
     }
 
+    suspend fun canAutoLogin(): Boolean {
+        val info = tokenStore.getRememberedLoginInfo()
+        return info.autoLoginEnabled && !tokenStore.getToken().isNullOrBlank()
+    }
+
     suspend fun getRememberedLoginInfo(): RememberedLoginInfo {
         return tokenStore.getRememberedLoginInfo()
     }
@@ -27,7 +32,8 @@ class AuthRepository(
     suspend fun login(
         account: String,
         password: String,
-        rememberPassword: Boolean
+        rememberPassword: Boolean,
+        autoLoginEnabled: Boolean
     ): ResultState<LoginResponse> {
         return try {
             val response = authApi.login(
@@ -36,17 +42,21 @@ class AuthRepository(
                     password = password
                 )
             )
+
             if (response.code == 200 && response.data != null) {
                 tokenStore.saveLoginSession(
                     token = response.data.token,
                     userId = response.data.userId,
                     username = response.data.username ?: account
                 )
+
                 tokenStore.saveRememberedLoginInfo(
                     account = account,
                     password = password,
-                    rememberPassword = rememberPassword
+                    rememberPassword = rememberPassword,
+                    autoLoginEnabled = autoLoginEnabled
                 )
+
                 ResultState.Success(response.data)
             } else {
                 ResultState.Error(
@@ -77,6 +87,7 @@ class AuthRepository(
                     nickname = nickname
                 )
             )
+
             if (response.code == 200) {
                 ResultState.Success(response.message.ifBlank { "注册成功" })
             } else {
@@ -117,6 +128,7 @@ class AuthRepository(
             val response = authApi.sendResetCode(
                 SendResetCodeRequest(phone = phone)
             )
+
             if (response.code == 200) {
                 ResultState.Success(response.message.ifBlank { "验证码发送成功" })
             } else {
@@ -148,6 +160,7 @@ class AuthRepository(
                     confirmPassword = confirmPassword
                 )
             )
+
             if (response.code == 200) {
                 ResultState.Success(response.message.ifBlank { "密码重置成功" })
             } else {

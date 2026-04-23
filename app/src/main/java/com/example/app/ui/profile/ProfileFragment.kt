@@ -11,10 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
-import com.example.app.common.Constants
 import com.example.app.data.local.PinStore
 import com.example.app.data.local.SelectedVehicleStore
-import com.example.app.data.local.ServerConfigStore
 import com.example.app.data.local.TokenStore
 import com.example.app.data.repository.AuthRepository
 import com.example.app.data.repository.VehicleRepository
@@ -31,12 +29,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private lateinit var tvNickname: TextView
     private lateinit var tvUsername: TextView
     private lateinit var tvPhone: TextView
-    private lateinit var tvRole: TextView
-    private lateinit var tvUserId: TextView
     private lateinit var tvSelectedVehicle: TextView
     private lateinit var tvPinStatus: TextView
-    private lateinit var tvServerUrl: TextView
-    private lateinit var btnRefreshProfile: Button
+
+    private lateinit var btnEditNickname: Button
+    private lateinit var btnChangePhone: Button
     private lateinit var btnResetPassword: Button
     private lateinit var btnManagePin: Button
     private lateinit var btnServerConfig: Button
@@ -44,7 +41,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private lateinit var viewModel: ProfileViewModel
     private lateinit var pinStore: PinStore
-    private lateinit var serverConfigStore: ServerConfigStore
     private lateinit var realtimeViewModel: AppRealtimeViewModel
 
     private val resetPasswordLauncher =
@@ -53,7 +49,7 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             if (!phone.isNullOrBlank()) {
                 Toast.makeText(
                     requireContext(),
-                    "密码重置成功，请使用新密码登录",
+                    "密码重置成功，请使用新密码重新登录",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -64,14 +60,27 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             refreshPinStatus()
         }
 
+    private val editNicknameLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                viewModel.loadProfile()
+            }
+        }
+
+    private val changePhoneLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                viewModel.loadProfile()
+            }
+        }
+
     private val serverConfigLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == android.app.Activity.RESULT_OK) {
-                refreshServerStatus()
                 realtimeViewModel.reconnect()
                 Toast.makeText(
                     requireContext(),
-                    "服务器地址已应用，实时通道正在重连",
+                    "服务器地址已更新，系统正在重新连接",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -96,7 +105,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val vehicleRepository = VehicleRepository(vehicleApi, selectedVehicleStore)
 
         pinStore = PinStore(appContext)
-        serverConfigStore = ServerConfigStore(appContext)
         realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
 
         viewModel = ViewModelProvider(
@@ -112,13 +120,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         initListeners()
         observeUiState()
         refreshPinStatus()
-        refreshServerStatus()
+        viewModel.loadProfile()
     }
 
     override fun onResume() {
         super.onResume()
         refreshPinStatus()
-        refreshServerStatus()
     }
 
     private fun initViews(view: View) {
@@ -126,12 +133,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         tvNickname = view.findViewById(R.id.tvNickname)
         tvUsername = view.findViewById(R.id.tvUsername)
         tvPhone = view.findViewById(R.id.tvPhone)
-        tvRole = view.findViewById(R.id.tvRole)
-        tvUserId = view.findViewById(R.id.tvUserId)
         tvSelectedVehicle = view.findViewById(R.id.tvSelectedVehicle)
         tvPinStatus = view.findViewById(R.id.tvPinStatus)
-        tvServerUrl = view.findViewById(R.id.tvServerUrl)
-        btnRefreshProfile = view.findViewById(R.id.btnRefreshProfile)
+
+        btnEditNickname = view.findViewById(R.id.btnEditNickname)
+        btnChangePhone = view.findViewById(R.id.btnChangePhone)
         btnResetPassword = view.findViewById(R.id.btnResetPassword)
         btnManagePin = view.findViewById(R.id.btnManagePin)
         btnServerConfig = view.findViewById(R.id.btnServerConfig)
@@ -139,8 +145,26 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     private fun initListeners() {
-        btnRefreshProfile.setOnClickListener {
-            viewModel.loadProfile()
+        btnEditNickname.setOnClickListener {
+            editNicknameLauncher.launch(
+                Intent(requireContext(), EditNicknameActivity::class.java).apply {
+                    putExtra(
+                        EditNicknameActivity.EXTRA_CURRENT_NICKNAME,
+                        viewModel.uiState.value?.nickname.orEmpty()
+                    )
+                }
+            )
+        }
+
+        btnChangePhone.setOnClickListener {
+            changePhoneLauncher.launch(
+                Intent(requireContext(), ChangePhoneActivity::class.java).apply {
+                    putExtra(
+                        ChangePhoneActivity.EXTRA_CURRENT_PHONE,
+                        viewModel.uiState.value?.phone.orEmpty()
+                    )
+                }
+            )
         }
 
         btnResetPassword.setOnClickListener {
@@ -153,15 +177,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
 
         btnManagePin.setOnClickListener {
-            pinManageLauncher.launch(
-                Intent(requireContext(), PinSetupActivity::class.java)
-            )
+            pinManageLauncher.launch(Intent(requireContext(), PinSetupActivity::class.java))
         }
 
         btnServerConfig.setOnClickListener {
-            serverConfigLauncher.launch(
-                Intent(requireContext(), ServerConfigActivity::class.java)
-            )
+            serverConfigLauncher.launch(Intent(requireContext(), ServerConfigActivity::class.java))
         }
 
         btnLogout.setOnClickListener {
@@ -171,15 +191,10 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private fun refreshPinStatus() {
         tvPinStatus.text = if (pinStore.hasPin()) {
-            "PIN 状态：已设置"
+            "PIN 安全验证：已开启"
         } else {
-            "PIN 状态：未设置"
+            "PIN 安全验证：未开启"
         }
-    }
-
-    private fun refreshServerStatus() {
-        val currentBaseUrl = serverConfigStore.getBaseUrl()
-        tvServerUrl.text = "服务器地址：$currentBaseUrl\nWebSocket：${Constants.WS_BASE_URL}"
     }
 
     private fun observeUiState() {
@@ -189,8 +204,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             val nickname = state.nickname.ifBlank { "未设置昵称" }
             val username = state.username.ifBlank { "-" }
             val phone = state.phone.ifBlank { "-" }
-            val role = state.role.ifBlank { "-" }
-            val userId = state.userId?.toString() ?: "-"
             val vehicleText = when {
                 state.selectedVehicleName.isNotBlank() && state.selectedVehicleId.isNotBlank() ->
                     "${state.selectedVehicleName} (${state.selectedVehicleId})"
@@ -202,8 +215,6 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             tvNickname.text = nickname
             tvUsername.text = "用户名：$username"
             tvPhone.text = "手机号：$phone"
-            tvRole.text = "角色：$role"
-            tvUserId.text = "用户ID：$userId"
             tvSelectedVehicle.text = "当前车辆：$vehicleText"
 
             state.infoMessage?.let {

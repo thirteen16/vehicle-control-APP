@@ -12,7 +12,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.APP"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".ui.profile.EditNicknameActivity"
+            android:exported="false" />
 
+        <activity
+            android:name=".ui.profile.ChangePhoneActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.settings.ServerConfigActivity"
             android:exported="false" />

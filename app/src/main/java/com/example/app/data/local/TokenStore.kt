@@ -14,7 +14,8 @@ private val Context.authDataStore by preferencesDataStore(name = "auth_store")
 data class RememberedLoginInfo(
     val account: String = "",
     val password: String = "",
-    val rememberPassword: Boolean = false
+    val rememberPassword: Boolean = false,
+    val autoLoginEnabled: Boolean = false
 )
 
 class TokenStore(private val context: Context) {
@@ -27,6 +28,7 @@ class TokenStore(private val context: Context) {
         private val LAST_LOGIN_ACCOUNT_KEY = stringPreferencesKey("last_login_account")
         private val REMEMBERED_PASSWORD_KEY = stringPreferencesKey("remembered_password")
         private val REMEMBER_PASSWORD_ENABLED_KEY = booleanPreferencesKey("remember_password_enabled")
+        private val AUTO_LOGIN_ENABLED_KEY = booleanPreferencesKey("auto_login_enabled")
     }
 
     suspend fun saveLoginSession(
@@ -78,11 +80,13 @@ class TokenStore(private val context: Context) {
     suspend fun saveRememberedLoginInfo(
         account: String,
         password: String,
-        rememberPassword: Boolean
+        rememberPassword: Boolean,
+        autoLoginEnabled: Boolean
     ) {
         context.authDataStore.edit { prefs ->
             prefs[LAST_LOGIN_ACCOUNT_KEY] = account
             prefs[REMEMBER_PASSWORD_ENABLED_KEY] = rememberPassword
+            prefs[AUTO_LOGIN_ENABLED_KEY] = autoLoginEnabled
 
             if (rememberPassword) {
                 prefs[REMEMBERED_PASSWORD_KEY] = password
@@ -97,7 +101,8 @@ class TokenStore(private val context: Context) {
         return RememberedLoginInfo(
             account = prefs[LAST_LOGIN_ACCOUNT_KEY].orEmpty(),
             password = prefs[REMEMBERED_PASSWORD_KEY].orEmpty(),
-            rememberPassword = prefs[REMEMBER_PASSWORD_ENABLED_KEY] ?: false
+            rememberPassword = prefs[REMEMBER_PASSWORD_ENABLED_KEY] ?: false,
+            autoLoginEnabled = prefs[AUTO_LOGIN_ENABLED_KEY] ?: false
         )
     }
 }

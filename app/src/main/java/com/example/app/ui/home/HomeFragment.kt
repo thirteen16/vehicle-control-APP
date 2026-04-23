@@ -1,9 +1,11 @@
 package com.example.app.ui.home
 
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -16,6 +18,7 @@ import com.example.app.common.UiStateTextResolver
 import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
+import com.example.app.ui.main.AppRealtimeViewModel
 import com.example.app.ui.vehicle.location.VehicleLocationActivity
 
 class HomeFragment : Fragment(R.layout.fragment_home) {
@@ -44,6 +47,11 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private lateinit var otherVehicleContainer: LinearLayout
 
     private lateinit var viewModel: HomeViewModel
+    private lateinit var realtimeViewModel: AppRealtimeViewModel
+
+    private var lastOtherVehicleSignature: String? = null
+    private var lastSelectedVehicleId: String? = null
+    private var refreshAnimator: ObjectAnimator? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -63,9 +71,12 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             HomeViewModel.Factory(vehicleRepository, tokenStore)
         )[HomeViewModel::class.java]
 
+        realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
+
         initViews(view)
         initListeners()
         observeUiState()
+        observeRealtimeState()
     }
 
     private fun initViews(view: View) {
@@ -115,12 +126,30 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun observeUiState() {
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+            progressBar.visibility =
+                if (state.isLoading && state.vehicles.isEmpty()) View.VISIBLE else View.GONE
 
             renderBanner(state)
             renderVehicleCount(state)
             renderCurrentVehicle(state)
-            renderOtherVehicles(state)
+            renderRefreshState(state)
+
+            val currentOtherSignature = buildOtherVehicleSignature(state)
+            val selectedChanged = lastSelectedVehicleId != state.selectedVehicleId
+
+            if (currentOtherSignature != lastOtherVehicleSignature || selectedChanged) {
+                renderOtherVehicles(state)
+                lastOtherVehicleSignature = currentOtherSignature
+                lastSelectedVehicleId = state.selectedVehicleId
+            }
+        }
+    }
+
+    private fun observeRealtimeState() {
+        realtimeViewModel.uiState.observe(viewLifecycleOwner) { state ->
+            state.latestVehicleState?.let { wsState ->
+                viewModel.applyRealtimeVehicleState(wsState)
+            }
         }
     }
 
@@ -187,11 +216,30 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         tvCurrentUpdatedTime.text = "更新时间：$updatedText"
 
         val hasSelectedVehicle = !state.selectedVehicleId.isNullOrBlank()
-        ivRefreshCurrent.isEnabled = hasSelectedVehicle
-        ivRefreshCurrent.alpha = if (hasSelectedVehicle) 1f else 0.45f
-
         ivCurrentLocation.isEnabled = hasSelectedVehicle
         ivCurrentLocation.alpha = if (hasSelectedVehicle) 1f else 0.45f
+    }
+
+    private fun renderRefreshState(state: HomeUiState) {
+        val canRefresh = !state.selectedVehicleId.isNullOrBlank()
+        ivRefreshCurrent.isEnabled = canRefresh && !state.isRefreshingCurrent
+        ivRefreshCurrent.alpha = if (canRefresh) 1f else 0.45f
+
+        if (state.isRefreshingCurrent) {
+            if (refreshAnimator == null) {
+                refreshAnimator = ObjectAnimator.ofFloat(ivRefreshCurrent, View.ROTATION, 0f, 360f).apply {
+                    duration = 700
+                    repeatCount = ObjectAnimator.INFINITE
+                    interpolator = LinearInterpolator()
+                }
+            }
+            if (refreshAnimator?.isStarted != true) {
+                refreshAnimator?.start()
+            }
+        } else {
+            refreshAnimator?.cancel()
+            ivRefreshCurrent.rotation = 0f
+        }
     }
 
     private fun renderOtherVehicles(state: HomeUiState) {
@@ -243,5 +291,29 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
             otherVehicleContainer.addView(itemView)
         }
+    }
+
+    private fun buildOtherVehicleSignature(state: HomeUiState): String {
+        val otherVehicles = state.vehicles.filter { it.vehicleId != state.selectedVehicleId }
+        return buildString {
+            otherVehicles.forEach { vehicle ->
+                append(vehicle.vehicleId)
+                append("|")
+                append(vehicle.name)
+                append("|")
+                append(vehicle.brand)
+                append("|")
+                append(vehicle.model)
+                append("|")
+                append(vehicle.mileage)
+                append(";")
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        refreshAnimator?.cancel()
+        refreshAnimator = null
+        super.onDestroyView()
     }
 }

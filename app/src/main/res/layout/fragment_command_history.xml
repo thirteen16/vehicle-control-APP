@@ -2,29 +2,33 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_page_gradient"
-    android:fillViewport="true">
+    android:background="@drawable/bg_dashboard_page_gradient"
+    android:fillViewport="true"
+    android:overScrollMode="never">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingStart="20dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="28dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="命令历史"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
+            android:text="操作历史"
+            android:textColor="#F5F8FF"
+            android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="支持按车辆范围和命令结果筛选。"
-            android:textColor="#AEB9D6"
+            android:text="查看车辆控制记录，快速了解最近的执行情况"
+            android:textColor="#9FB0D2"
             android:textSize="14sp" />
 
         <TextView
@@ -41,8 +45,8 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/bg_surface_card"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_dashboard_current_card"
             android:orientation="vertical"
             android:padding="18dp">
 
@@ -50,9 +54,9 @@
                 android:id="@+id/tvCurrentFilter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="车辆范围：-"
+                android:text="车辆范围：全部车辆"
                 android:textColor="#FFFFFF"
-                android:textSize="18sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -61,7 +65,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="状态筛选：全部"
-                android:textColor="#C8D2EC"
+                android:textColor="#A8B8D8"
                 android:textSize="14sp" />
 
             <TextView
@@ -69,8 +73,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="当前显示：0 / 已加载：0"
-                android:textColor="#C8D2EC"
+                android:text="当前显示 0 条 · 已加载 0 条"
+                android:textColor="#A8B8D8"
                 android:textSize="14sp" />
 
             <LinearLayout
@@ -82,9 +86,13 @@
                 <Button
                     android:id="@+id/btnRefreshCurrent"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="50dp"
                     android:layout_weight="1"
-                    android:text="看当前车辆" />
+                    android:background="@drawable/bg_control_primary_button"
+                    android:text="当前车辆"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold" />
 
                 <Space
                     android:layout_width="12dp"
@@ -93,9 +101,13 @@
                 <Button
                     android:id="@+id/btnLoadAll"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="50dp"
                     android:layout_weight="1"
-                    android:text="看全部历史" />
+                    android:background="@drawable/bg_control_secondary_button"
+                    android:text="全部历史"
+                    android:textAllCaps="false"
+                    android:textColor="#EAF1FF"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout
@@ -107,9 +119,13 @@
                 <Button
                     android:id="@+id/btnFilterAll"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="46dp"
                     android:layout_weight="1"
-                    android:text="全部" />
+                    android:background="@drawable/bg_control_secondary_button"
+                    android:text="全部"
+                    android:textAllCaps="false"
+                    android:textColor="#EAF1FF"
+                    android:textStyle="bold" />
 
                 <Space
                     android:layout_width="8dp"
@@ -118,35 +134,40 @@
                 <Button
                     android:id="@+id/btnFilterSuccess"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="46dp"
                     android:layout_weight="1"
-                    android:text="SUCCESS" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnFilterFailed"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="FAILED" />
+                    android:background="@drawable/bg_control_secondary_button"
+                    android:text="成功"
+                    android:textAllCaps="false"
+                    android:textColor="#EAF1FF"
+                    android:textStyle="bold" />
 
                 <Space
                     android:layout_width="8dp"
                     android:layout_height="wrap_content" />
 
                 <Button
-                    android:id="@+id/btnFilterPending"
+                    android:id="@+id/btnFilterFailed"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="46dp"
                     android:layout_weight="1"
-                    android:text="PENDING" />
+                    android:background="@drawable/bg_control_secondary_button"
+                    android:text="失败"
+                    android:textAllCaps="false"
+                    android:textColor="#EAF1FF"
+                    android:textStyle="bold" />
             </LinearLayout>
+
+            <Button
+                android:id="@+id/btnFilterPending"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_control_secondary_button"
+                android:text="进行中"
+                android:textAllCaps="false"
+                android:textColor="#EAF1FF"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <ProgressBar
@@ -155,25 +176,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tvEmptyTip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:gravity="center"
-            android:text=""
-            android:textColor="#C8D2EC"
-            android:textSize="15sp"
+            android:layout_marginTop="18dp"
             android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/historyContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="18dp"
             android:orientation="vertical" />
 
     </LinearLayout>

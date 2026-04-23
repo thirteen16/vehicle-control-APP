@@ -5,11 +5,11 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
@@ -24,21 +24,17 @@ import com.example.app.ui.pin.PinVerifyActivity
 
 class ControlFragment : Fragment(R.layout.fragment_control) {
 
+    private lateinit var progressBar: ProgressBar
+
     private lateinit var tvSelectedVehicle: TextView
-    private lateinit var tvWsStatus: TextView
     private lateinit var tvVehicleOnlineStatus: TextView
     private lateinit var tvVehicleLockStatus: TextView
     private lateinit var tvVehicleEngineStatus: TextView
     private lateinit var tvVehicleHvacStatus: TextView
     private lateinit var tvVehicleWindowStatus: TextView
-    private lateinit var tvRealtimeState: TextView
-    private lateinit var tvActionStatus: TextView
-    private lateinit var tvCommandId: TextView
-    private lateinit var tvCommandType: TextView
-    private lateinit var tvCommandResult: TextView
-    private lateinit var tvRequestTime: TextView
-    private lateinit var tvResponseTime: TextView
-    private lateinit var progressBar: ProgressBar
+    private lateinit var tvControlHint: TextView
+    private lateinit var tvLatestActionResult: TextView
+    private lateinit var ivRefreshVehicleState: ImageView
 
     private lateinit var btnLockOn: Button
     private lateinit var btnLockOff: Button
@@ -49,9 +45,6 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
     private lateinit var btnEngineOn: Button
     private lateinit var btnEngineOff: Button
     private lateinit var btnStatusQuery: Button
-    private lateinit var btnRefreshResult: Button
-    private lateinit var btnRefreshVehicleState: Button
-    private lateinit var btnPing: Button
 
     private lateinit var viewModel: ControlViewModel
     private lateinit var realtimeViewModel: AppRealtimeViewModel
@@ -63,22 +56,22 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val commandType = pendingProtectedCommand
             if (result.resultCode == Activity.RESULT_OK && !commandType.isNullOrBlank()) {
-                showCommandConfirmDialog(commandType)
+                viewModel.sendCommand(commandType)
             } else if (!commandType.isNullOrBlank()) {
                 Toast.makeText(requireContext(), "未完成 PIN 设置，命令已取消", Toast.LENGTH_SHORT).show()
-                pendingProtectedCommand = null
             }
+            pendingProtectedCommand = null
         }
 
     private val pinVerifyLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val commandType = pendingProtectedCommand
             if (result.resultCode == Activity.RESULT_OK && !commandType.isNullOrBlank()) {
-                showCommandConfirmDialog(commandType)
+                viewModel.sendCommand(commandType)
             } else if (!commandType.isNullOrBlank()) {
                 Toast.makeText(requireContext(), "PIN 验证未通过，命令已取消", Toast.LENGTH_SHORT).show()
-                pendingProtectedCommand = null
             }
+            pendingProtectedCommand = null
         }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -121,21 +114,17 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
     }
 
     private fun initViews(view: View) {
+        progressBar = view.findViewById(R.id.progressBar)
+
         tvSelectedVehicle = view.findViewById(R.id.tvSelectedVehicle)
-        tvWsStatus = view.findViewById(R.id.tvWsStatus)
         tvVehicleOnlineStatus = view.findViewById(R.id.tvVehicleOnlineStatus)
         tvVehicleLockStatus = view.findViewById(R.id.tvVehicleLockStatus)
         tvVehicleEngineStatus = view.findViewById(R.id.tvVehicleEngineStatus)
         tvVehicleHvacStatus = view.findViewById(R.id.tvVehicleHvacStatus)
         tvVehicleWindowStatus = view.findViewById(R.id.tvVehicleWindowStatus)
-        tvRealtimeState = view.findViewById(R.id.tvRealtimeState)
-        tvActionStatus = view.findViewById(R.id.tvActionStatus)
-        tvCommandId = view.findViewById(R.id.tvCommandId)
-        tvCommandType = view.findViewById(R.id.tvCommandType)
-        tvCommandResult = view.findViewById(R.id.tvCommandResult)
-        tvRequestTime = view.findViewById(R.id.tvRequestTime)
-        tvResponseTime = view.findViewById(R.id.tvResponseTime)
-        progressBar = view.findViewById(R.id.progressBar)
+        tvControlHint = view.findViewById(R.id.tvControlHint)
+        tvLatestActionResult = view.findViewById(R.id.tvLatestActionResult)
+        ivRefreshVehicleState = view.findViewById(R.id.ivRefreshVehicleState)
 
         btnLockOn = view.findViewById(R.id.btnLockOn)
         btnLockOff = view.findViewById(R.id.btnLockOff)
@@ -146,9 +135,6 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         btnEngineOn = view.findViewById(R.id.btnEngineOn)
         btnEngineOff = view.findViewById(R.id.btnEngineOff)
         btnStatusQuery = view.findViewById(R.id.btnStatusQuery)
-        btnRefreshResult = view.findViewById(R.id.btnRefreshResult)
-        btnRefreshVehicleState = view.findViewById(R.id.btnRefreshVehicleState)
-        btnPing = view.findViewById(R.id.btnPing)
     }
 
     private fun initListeners() {
@@ -165,21 +151,8 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             viewModel.sendCommand("STATUS_QUERY")
         }
 
-        btnRefreshResult.setOnClickListener {
-            viewModel.refreshLastCommandResult()
-        }
-
-        btnRefreshVehicleState.setOnClickListener {
+        ivRefreshVehicleState.setOnClickListener {
             viewModel.refreshSelectedVehicleState()
-        }
-
-        btnPing.setOnClickListener {
-            val ok = realtimeViewModel.sendPing()
-            Toast.makeText(
-                requireContext(),
-                if (ok) "已发送 ping" else "发送 ping 失败，请先连接实时通道",
-                Toast.LENGTH_SHORT
-            ).show()
         }
     }
 
@@ -187,7 +160,7 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         val state = viewModel.uiState.value ?: return
 
         if (state.selectedVehicleId.isNullOrBlank()) {
-            Toast.makeText(requireContext(), "请先在车辆页选择一辆车", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "请先在主页选择一辆车", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -211,44 +184,22 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         pinVerifyLauncher.launch(Intent(requireContext(), PinVerifyActivity::class.java))
     }
 
-    private fun showCommandConfirmDialog(commandType: String) {
-        val title = commandDisplayName(commandType)
-        AlertDialog.Builder(requireContext())
-            .setTitle("确认操作")
-            .setMessage("确定要执行“$title”吗？")
-            .setNegativeButton("取消") { dialog, _ ->
-                dialog.dismiss()
-                pendingProtectedCommand = null
-            }
-            .setPositiveButton("确认") { dialog, _ ->
-                dialog.dismiss()
-                viewModel.sendCommand(commandType)
-                pendingProtectedCommand = null
-            }
-            .show()
-    }
-
     private fun observeUiState() {
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             val busy = state.isLoading || state.isPolling
             progressBar.visibility = if (busy) View.VISIBLE else View.GONE
 
-            tvSelectedVehicle.text = "当前车辆：${state.selectedVehicleId ?: "未选择"}"
-            tvWsStatus.text = "实时通道：${if (state.wsConnected) "已连接" else "未连接"}"
+            tvSelectedVehicle.text = state.selectedVehicleId ?: "未选择车辆"
             tvVehicleOnlineStatus.text = "在线状态：${onlineText(state.onlineStatus)}"
             tvVehicleLockStatus.text = "车锁状态：${state.lockStatus ?: "-"}"
             tvVehicleEngineStatus.text = "发动机：${state.engineStatus ?: "-"}"
             tvVehicleHvacStatus.text = "空调：${state.hvacStatus ?: "-"}"
             tvVehicleWindowStatus.text = "车窗：${state.windowStatus ?: "-"}"
-            tvRealtimeState.text = "最近实时状态：${state.latestVehicleStateText ?: "-"}"
-            tvActionStatus.text = buildActionStatusText(state)
-            tvCommandId.text = "commandId：${state.lastCommandId ?: "-"}"
-            tvCommandType.text = "命令类型：${state.lastCommandType ?: "-"}"
-            tvCommandResult.text = "命令结果：${state.lastCommandResult ?: "-"}"
-            tvRequestTime.text = "请求时间：${state.lastRequestTime ?: "-"}"
-            tvResponseTime.text = "响应时间：${state.lastResponseTime ?: "-"}"
+            tvControlHint.text = buildControlHint(state)
+            tvLatestActionResult.text = buildLatestActionResult(state)
 
             renderButtonStates(state)
+            renderRefreshState(state)
 
             state.infoMessage?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
@@ -283,8 +234,6 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
 
         val canProtectedOperate = hasVehicle && online && !busy
         val canQuery = hasVehicle && !busy
-        val canRefreshResult = !state.lastCommandId.isNullOrBlank() && !busy
-        val canRefreshVehicleState = hasVehicle && !busy
 
         applyButtonState(btnLockOn, canProtectedOperate && !state.lockStatus.equals("LOCKED", true))
         applyButtonState(btnLockOff, canProtectedOperate && !state.lockStatus.equals("UNLOCKED", true))
@@ -299,9 +248,6 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         applyButtonState(btnEngineOff, canProtectedOperate && !state.engineStatus.equals("OFF", true))
 
         applyButtonState(btnStatusQuery, canQuery)
-        applyButtonState(btnRefreshResult, canRefreshResult)
-        applyButtonState(btnRefreshVehicleState, canRefreshVehicleState)
-        applyButtonState(btnPing, !busy)
 
         btnLockOn.text = if (state.lockStatus.equals("LOCKED", true)) "已上锁" else "上锁"
         btnLockOff.text = if (state.lockStatus.equals("UNLOCKED", true)) "已解锁" else "解锁"
@@ -314,6 +260,13 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
 
         btnEngineOn.text = if (state.engineStatus.equals("ON", true)) "发动机已启动" else "启动发动机"
         btnEngineOff.text = if (state.engineStatus.equals("OFF", true)) "发动机已关闭" else "关闭发动机"
+    }
+
+    private fun renderRefreshState(state: ControlUiState) {
+        val canRefresh = !state.selectedVehicleId.isNullOrBlank() && !state.isLoading && !state.isPolling
+        ivRefreshVehicleState.isEnabled = canRefresh
+        ivRefreshVehicleState.alpha = if (canRefresh) 1f else 0.45f
+        ivRefreshVehicleState.rotation = if (state.isLoading || state.isPolling) 180f else 0f
     }
 
     private fun applyButtonState(button: Button, enabled: Boolean) {
@@ -329,15 +282,33 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         }
     }
 
-    private fun buildActionStatusText(state: ControlUiState): String {
+    private fun buildControlHint(state: ControlUiState): String {
         return when {
-            state.pendingCommandType != null -> "执行中：${commandDisplayName(state.pendingCommandType)}，请等待结果"
-            state.isPolling -> "正在轮询命令结果，请稍候"
-            state.selectedVehicleId.isNullOrBlank() -> "请先在车辆页选择一辆车"
-            state.onlineStatus == 0 -> "车辆当前离线，仅建议使用“状态查询”"
-            state.wsConnected -> "控制通道正常，可执行操作"
-            else -> "实时通道未连接，仍可尝试控制，但回执可能延迟"
+            state.selectedVehicleId.isNullOrBlank() -> "请先在主页中选择当前车辆"
+            state.isLoading -> "正在同步车辆状态…"
+            state.pendingCommandType != null -> "正在执行：${commandDisplayName(state.pendingCommandType)}"
+            state.isPolling -> "正在等待车辆返回操作结果…"
+            state.onlineStatus == 0 -> "车辆当前离线，可先尝试状态查询或稍后再试"
+            else -> "请选择需要执行的远程控制操作"
         }
+    }
+
+    private fun buildLatestActionResult(state: ControlUiState): String {
+        val commandType = state.lastCommandType
+        val commandResult = state.lastCommandResult
+
+        if (commandType.isNullOrBlank() || commandResult.isNullOrBlank()) {
+            return "最近操作：暂无"
+        }
+
+        val resultText = when {
+            commandResult.equals("SUCCESS", true) -> "成功"
+            commandResult.equals("FAILED", true) -> "失败"
+            commandResult.equals("PENDING", true) -> "执行中"
+            else -> commandResult
+        }
+
+        return "最近操作：${commandDisplayName(commandType)} · $resultText"
     }
 
     private fun commandDisplayName(commandType: String?): String {

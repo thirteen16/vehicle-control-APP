@@ -27,6 +27,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var etPassword: EditText
     private lateinit var tvTogglePassword: TextView
     private lateinit var cbRememberPassword: CheckBox
+    private lateinit var cbAutoLogin: CheckBox
     private lateinit var btnLogin: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var tvForgetPassword: TextView
@@ -52,6 +53,7 @@ class LoginActivity : AppCompatActivity() {
 
             if (!account.isNullOrBlank() || !password.isNullOrBlank()) {
                 cbRememberPassword.isChecked = false
+                cbAutoLogin.isChecked = false
                 prefillApplied = true
             }
         }
@@ -64,6 +66,7 @@ class LoginActivity : AppCompatActivity() {
                 etAccount.setSelection(phone.length)
                 etPassword.setText("")
                 cbRememberPassword.isChecked = false
+                cbAutoLogin.isChecked = false
                 prefillApplied = true
             }
         }
@@ -94,6 +97,7 @@ class LoginActivity : AppCompatActivity() {
         etPassword = findViewById(R.id.etPassword)
         tvTogglePassword = findViewById(R.id.tvTogglePassword)
         cbRememberPassword = findViewById(R.id.cbRememberPassword)
+        cbAutoLogin = findViewById(R.id.cbAutoLogin)
         btnLogin = findViewById(R.id.btnLogin)
         progressBar = findViewById(R.id.progressBar)
         tvForgetPassword = findViewById(R.id.tvForgetPassword)
@@ -105,7 +109,8 @@ class LoginActivity : AppCompatActivity() {
             viewModel.login(
                 account = etAccount.text.toString(),
                 password = etPassword.text.toString(),
-                rememberPassword = cbRememberPassword.isChecked
+                rememberPassword = cbRememberPassword.isChecked,
+                autoLoginEnabled = cbAutoLogin.isChecked
             )
         }
 
@@ -128,6 +133,12 @@ class LoginActivity : AppCompatActivity() {
             }
             etPassword.setSelection(etPassword.text.length)
         }
+
+        cbAutoLogin.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                cbRememberPassword.isChecked = true
+            }
+        }
     }
 
     private fun observeUiState() {
@@ -136,6 +147,7 @@ class LoginActivity : AppCompatActivity() {
                 etAccount.setText(state.rememberedAccount)
                 etPassword.setText(state.rememberedPassword)
                 cbRememberPassword.isChecked = state.rememberPassword
+                cbAutoLogin.isChecked = state.autoLoginEnabled
 
                 if (state.rememberedAccount.isNotEmpty()) {
                     etAccount.setSelection(state.rememberedAccount.length)

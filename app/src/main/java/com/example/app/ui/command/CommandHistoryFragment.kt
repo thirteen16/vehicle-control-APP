@@ -24,7 +24,6 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
     private lateinit var tvCurrentFilter: TextView
     private lateinit var tvResultFilter: TextView
     private lateinit var tvTotalCount: TextView
-    private lateinit var tvEmptyTip: TextView
     private lateinit var historyContainer: LinearLayout
 
     private lateinit var btnRefreshCurrent: Button
@@ -65,7 +64,6 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
         tvCurrentFilter = view.findViewById(R.id.tvCurrentFilter)
         tvResultFilter = view.findViewById(R.id.tvResultFilter)
         tvTotalCount = view.findViewById(R.id.tvTotalCount)
-        tvEmptyTip = view.findViewById(R.id.tvEmptyTip)
         historyContainer = view.findViewById(R.id.historyContainer)
 
         btnRefreshCurrent = view.findViewById(R.id.btnRefreshCurrent)
@@ -113,14 +111,10 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
             }
 
             tvResultFilter.text = "状态筛选：${displayFilterText(state.resultFilter)}"
-            tvTotalCount.text = "当前显示：${state.items.size} / 已加载：${state.totalLoadedCount}"
+            tvTotalCount.text = "当前显示 ${state.items.size} 条 · 已加载 ${state.totalLoadedCount} 条"
 
             renderFilterButtons(state.resultFilter)
             renderStateBanner(state)
-
-            tvEmptyTip.visibility = View.GONE
-            historyContainer.visibility = if (state.items.isEmpty()) View.GONE else View.VISIBLE
-
             renderHistoryList(state.items)
         }
     }
@@ -163,11 +157,14 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
 
     private fun renderSingleFilterButton(button: Button, selected: Boolean) {
         button.isEnabled = !selected
-        button.alpha = if (selected) 1f else 0.65f
+        button.alpha = if (selected) 1f else 0.7f
     }
 
     private fun renderHistoryList(items: List<CommandHistoryItemResponse>) {
         historyContainer.removeAllViews()
+
+        if (items.isEmpty()) return
+
         val inflater = LayoutInflater.from(requireContext())
 
         items.forEach { item ->
@@ -177,16 +174,14 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
             val tvType = itemView.findViewById<TextView>(R.id.tvType)
             val tvResultBadge = itemView.findViewById<TextView>(R.id.tvResultBadge)
             val tvVehicleId = itemView.findViewById<TextView>(R.id.tvVehicleId)
-            val tvCommandId = itemView.findViewById<TextView>(R.id.tvCommandId)
             val tvTime = itemView.findViewById<TextView>(R.id.tvTime)
             val tvDetailHint = itemView.findViewById<TextView>(R.id.tvDetailHint)
 
-            tvType.text = item.type ?: "-"
-            tvResultBadge.text = (item.result ?: "-").uppercase()
+            tvType.text = commandDisplayName(item.type)
+            tvResultBadge.text = formatResult(item.result)
             tvVehicleId.text = "车辆：${item.vehicleId ?: "-"}"
-            tvCommandId.text = "commandId：${item.commandId ?: "-"}"
-            tvTime.text = "请求：${item.requestTime ?: "-"}\n响应：${item.responseTime ?: "-"}"
-            tvDetailHint.text = "点击查看完整请求/响应详情"
+            tvTime.text = buildTimeText(item)
+            tvDetailHint.text = "点击查看完整操作详情"
 
             applyResultBadgeStyle(tvResultBadge, item.result)
 
@@ -196,6 +191,36 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
             }
 
             historyContainer.addView(itemView)
+        }
+    }
+
+    private fun buildTimeText(item: CommandHistoryItemResponse): String {
+        val requestTime = item.requestTime ?: "-"
+        val responseTime = item.responseTime ?: "-"
+        return "发起时间：$requestTime\n完成时间：$responseTime"
+    }
+
+    private fun commandDisplayName(type: String?): String {
+        return when (type) {
+            "LOCK_ON" -> "上锁"
+            "LOCK_OFF" -> "解锁"
+            "HVAC_ON" -> "开启空调"
+            "HVAC_OFF" -> "关闭空调"
+            "WINDOW_OPEN" -> "打开车窗"
+            "WINDOW_CLOSE" -> "关闭车窗"
+            "ENGINE_ON" -> "启动发动机"
+            "ENGINE_OFF" -> "关闭发动机"
+            "STATUS_QUERY" -> "同步车辆状态"
+            else -> type ?: "-"
+        }
+    }
+
+    private fun formatResult(result: String?): String {
+        return when {
+            result.equals("SUCCESS", true) -> "成功"
+            result.equals("FAILED", true) -> "失败"
+            result.equals("PENDING", true) -> "进行中"
+            else -> result ?: "-"
         }
     }
 
@@ -212,9 +237,9 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
     private fun displayFilterText(filter: CommandResultFilter): String {
         return when (filter) {
             CommandResultFilter.ALL -> "全部"
-            CommandResultFilter.SUCCESS -> "SUCCESS"
-            CommandResultFilter.FAILED -> "FAILED"
-            CommandResultFilter.PENDING -> "PENDING"
+            CommandResultFilter.SUCCESS -> "成功"
+            CommandResultFilter.FAILED -> "失败"
+            CommandResultFilter.PENDING -> "进行中"
         }
     }
 }
