@@ -7,6 +7,7 @@ import com.example.app.data.model.request.LoginRequest
 import com.example.app.data.model.request.RegisterRequest
 import com.example.app.data.model.request.ResetPasswordRequest
 import com.example.app.data.model.request.SendResetCodeRequest
+import com.example.app.data.model.response.CurrentUserResponse
 import com.example.app.data.model.response.LoginResponse
 import com.example.app.data.remote.api.AuthApi
 
@@ -35,20 +36,17 @@ class AuthRepository(
                     password = password
                 )
             )
-
             if (response.code == 200 && response.data != null) {
                 tokenStore.saveLoginSession(
                     token = response.data.token,
                     userId = response.data.userId,
                     username = response.data.username ?: account
                 )
-
                 tokenStore.saveRememberedLoginInfo(
                     account = account,
                     password = password,
                     rememberPassword = rememberPassword
                 )
-
                 ResultState.Success(response.data)
             } else {
                 ResultState.Error(
@@ -79,7 +77,6 @@ class AuthRepository(
                     nickname = nickname
                 )
             )
-
             if (response.code == 200) {
                 ResultState.Success(response.message.ifBlank { "注册成功" })
             } else {
@@ -96,12 +93,30 @@ class AuthRepository(
         }
     }
 
+    suspend fun getCurrentUser(): ResultState<CurrentUserResponse> {
+        return try {
+            val response = authApi.getCurrentUser()
+            if (response.code == 200 && response.data != null) {
+                ResultState.Success(response.data)
+            } else {
+                ResultState.Error(
+                    message = response.message.ifBlank { "获取当前用户失败" },
+                    code = response.code
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ResultState.Error(
+                message = e.javaClass.simpleName + ": " + (e.message ?: "获取当前用户失败")
+            )
+        }
+    }
+
     suspend fun sendResetCode(phone: String): ResultState<String> {
         return try {
             val response = authApi.sendResetCode(
                 SendResetCodeRequest(phone = phone)
             )
-
             if (response.code == 200) {
                 ResultState.Success(response.message.ifBlank { "验证码发送成功" })
             } else {
@@ -133,7 +148,6 @@ class AuthRepository(
                     confirmPassword = confirmPassword
                 )
             )
-
             if (response.code == 200) {
                 ResultState.Success(response.message.ifBlank { "密码重置成功" })
             } else {
@@ -148,5 +162,9 @@ class AuthRepository(
                 message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
             )
         }
+    }
+
+    suspend fun logout() {
+        tokenStore.clearLoginSession()
     }
 }

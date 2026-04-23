@@ -16,7 +16,9 @@ import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
 import com.example.app.ui.auth.login.LoginActivity
-import com.example.app.ui.control.ControlActivity
+import com.example.app.ui.main.AppRealtimeViewModel
+import com.example.app.ui.main.MainTabState
+import com.example.app.ui.main.MainViewModel
 
 class HomeFragment : Fragment(R.layout.fragment_home) {
 
@@ -42,6 +44,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private lateinit var btnLogout: Button
 
     private lateinit var viewModel: HomeViewModel
+    private lateinit var mainViewModel: MainViewModel
+    private lateinit var realtimeViewModel: AppRealtimeViewModel
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -61,9 +65,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             HomeViewModel.Factory(vehicleRepository, tokenStore)
         )[HomeViewModel::class.java]
 
+        mainViewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
+        realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
+
         initViews(view)
         initListeners()
         observeUiState()
+        observeRealtimeState()
     }
 
     private fun initViews(view: View) {
@@ -95,11 +103,17 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
 
         btnControlPlaceholder.setOnClickListener {
-            startActivity(Intent(requireContext(), ControlActivity::class.java))
+            mainViewModel.selectTab(MainTabState.CONTROL)
         }
 
         btnRealtimePlaceholder.setOnClickListener {
-            Toast.makeText(requireContext(), "实时推送下一步再做", Toast.LENGTH_SHORT).show()
+            realtimeViewModel.connectIfNeeded()
+            val connected = realtimeViewModel.uiState.value?.wsConnected == true
+            Toast.makeText(
+                requireContext(),
+                if (connected) "实时通道已连接" else "正在连接实时通道",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         btnLogout.setOnClickListener {
@@ -120,6 +134,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
             state.errorMessage?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                viewModel.clearErrorMessage()
             }
 
             if (state.loggedOut) {
@@ -131,14 +146,28 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
     }
 
+    private fun observeRealtimeState() {
+        realtimeViewModel.uiState.observe(viewLifecycleOwner) { state ->
+            btnRealtimePlaceholder.text = if (state.wsConnected) {
+                "实时通道：已连接"
+            } else {
+                "实时通道：未连接"
+            }
+
+            state.latestVehicleState?.let { wsState ->
+                viewModel.applyRealtimeVehicleState(wsState)
+            }
+        }
+    }
+
     private fun renderVehicleList(state: HomeUiState) {
         vehicleContainer.removeAllViews()
-
         val inflater = LayoutInflater.from(requireContext())
 
         state.vehicles.forEach { vehicle ->
             val itemView = inflater.inflate(R.layout.item_vehicle, vehicleContainer, false)
-            val root = itemView.findViewById<LinearLayout>(R.id.rootVehicleItem)
+
+            val root = itemView.findViewById<View>(R.id.rootVehicleItem)
             val tvVehicleName = itemView.findViewById<TextView>(R.id.tvVehicleName)
             val tvVehicleSub = itemView.findViewById<TextView>(R.id.tvVehicleSub)
             val tvSelectedBadge = itemView.findViewById<TextView>(R.id.tvSelectedBadge)
@@ -183,6 +212,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
         val brand = selectedState?.brand ?: selectedVehicle?.brand
         val model = selectedState?.model ?: selectedVehicle?.model
+
         tvBrandModel.text = "品牌 / 型号：${brand ?: "-"} / ${model ?: "-"}"
 
         val onlineStatus = when (selectedState?.onlineStatus ?: selectedVehicle?.onlineStatus) {
@@ -190,6 +220,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             0 -> "离线"
             else -> "-"
         }
+
         tvOnlineStatus.text = "在线状态：$onlineStatus"
         tvLockStatus.text = "锁状态：${selectedState?.lockStatus ?: selectedVehicle?.lockStatus ?: "-"}"
         tvEngineStatus.text = "发动机：${selectedState?.engineStatus ?: selectedVehicle?.engineStatus ?: "-"}"

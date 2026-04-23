@@ -1,18 +1,24 @@
 package com.example.app.ui.control
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
+import com.example.app.data.local.PinStore
 import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.repository.CommandRepository
-import com.example.app.data.repository.RealtimeRepository
 import com.example.app.di.NetworkModule
+import com.example.app.ui.main.AppRealtimeViewModel
+import com.example.app.ui.pin.PinSetupActivity
+import com.example.app.ui.pin.PinVerifyActivity
 
 class ControlFragment : Fragment(R.layout.fragment_control) {
 
@@ -39,6 +45,32 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
     private lateinit var btnPing: Button
 
     private lateinit var viewModel: ControlViewModel
+    private lateinit var realtimeViewModel: AppRealtimeViewModel
+    private lateinit var pinStore: PinStore
+
+    private var pendingProtectedCommand: String? = null
+
+    private val pinSetupLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val commandType = pendingProtectedCommand
+            if (result.resultCode == Activity.RESULT_OK && !commandType.isNullOrBlank()) {
+                viewModel.sendCommand(commandType)
+            } else if (!commandType.isNullOrBlank()) {
+                Toast.makeText(requireContext(), "未完成 PIN 设置，命令已取消", Toast.LENGTH_SHORT).show()
+            }
+            pendingProtectedCommand = null
+        }
+
+    private val pinVerifyLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val commandType = pendingProtectedCommand
+            if (result.resultCode == Activity.RESULT_OK && !commandType.isNullOrBlank()) {
+                viewModel.sendCommand(commandType)
+            } else if (!commandType.isNullOrBlank()) {
+                Toast.makeText(requireContext(), "PIN 验证未通过，命令已取消", Toast.LENGTH_SHORT).show()
+            }
+            pendingProtectedCommand = null
+        }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -49,22 +81,25 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         val loggingInterceptor = NetworkModule.provideLoggingInterceptor()
         val okHttpClient = NetworkModule.provideOkHttpClient(authInterceptor, loggingInterceptor)
         val retrofit = NetworkModule.provideRetrofit(okHttpClient)
-
         val commandApi = NetworkModule.provideCommandApi(retrofit)
         val selectedVehicleStore = SelectedVehicleStore(appContext)
         val commandRepository = CommandRepository(commandApi, selectedVehicleStore)
 
-        val appWebSocketClient = NetworkModule.provideAppWebSocketClient(okHttpClient)
-        val realtimeRepository = RealtimeRepository(tokenStore, appWebSocketClient)
+        pinStore = PinStore(appContext)
 
         viewModel = ViewModelProvider(
             this,
-            ControlViewModel.Factory(commandRepository, realtimeRepository)
+            ControlViewModel.Factory(commandRepository)
         )[ControlViewModel::class.java]
+
+        realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
 
         initViews(view)
         initListeners()
         observeUiState()
+        observeRealtimeState()
+
+        realtimeViewModel.connectIfNeeded()
     }
 
     private fun initViews(view: View) {
@@ -92,17 +127,49 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
     }
 
     private fun initListeners() {
-        btnLockOn.setOnClickListener { viewModel.sendCommand("LOCK_ON") }
-        btnLockOff.setOnClickListener { viewModel.sendCommand("LOCK_OFF") }
-        btnHvacOn.setOnClickListener { viewModel.sendCommand("HVAC_ON") }
-        btnHvacOff.setOnClickListener { viewModel.sendCommand("HVAC_OFF") }
-        btnWindowOpen.setOnClickListener { viewModel.sendCommand("WINDOW_OPEN") }
-        btnWindowClose.setOnClickListener { viewModel.sendCommand("WINDOW_CLOSE") }
-        btnEngineOn.setOnClickListener { viewModel.sendCommand("ENGINE_ON") }
-        btnEngineOff.setOnClickListener { viewModel.sendCommand("ENGINE_OFF") }
-        btnStatusQuery.setOnClickListener { viewModel.sendCommand("STATUS_QUERY") }
-        btnRefreshResult.setOnClickListener { viewModel.refreshLastCommandResult() }
-        btnPing.setOnClickListener { viewModel.sendPing() }
+        btnLockOn.setOnClickListener { requestProtectedCommand("LOCK_ON") }
+        btnLockOff.setOnClickListener { requestProtectedCommand("LOCK_OFF") }
+        btnHvacOn.setOnClickListener { requestProtectedCommand("HVAC_ON") }
+        btnHvacOff.setOnClickListener { requestProtectedCommand("HVAC_OFF") }
+        btnWindowOpen.setOnClickListener { requestProtectedCommand("WINDOW_OPEN") }
+        btnWindowClose.setOnClickListener { requestProtectedCommand("WINDOW_CLOSE") }
+        btnEngineOn.setOnClickListener { requestProtectedCommand("ENGINE_ON") }
+        btnEngineOff.setOnClickListener { requestProtectedCommand("ENGINE_OFF") }
+
+        btnStatusQuery.setOnClickListener {
+            viewModel.sendCommand("STATUS_QUERY")
+        }
+
+        btnRefreshResult.setOnClickListener {
+            viewModel.refreshLastCommandResult()
+        }
+
+        btnPing.setOnClickListener {
+            val ok = realtimeViewModel.sendPing()
+            Toast.makeText(
+                requireContext(),
+                if (ok) "已发送 ping" else "发送 ping 失败，请先连接实时通道",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun requestProtectedCommand(commandType: String) {
+        pendingProtectedCommand = commandType
+
+        if (!pinStore.hasPin()) {
+            Toast.makeText(requireContext(), "请先设置 PIN", Toast.LENGTH_SHORT).show()
+            pinSetupLauncher.launch(
+                Intent(requireContext(), PinSetupActivity::class.java).apply {
+                    putExtra(PinSetupActivity.EXTRA_FINISH_AFTER_SAVE, true)
+                }
+            )
+            return
+        }
+
+        pinVerifyLauncher.launch(
+            Intent(requireContext(), PinVerifyActivity::class.java)
+        )
     }
 
     private fun observeUiState() {
@@ -113,7 +180,6 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             tvSelectedVehicle.text = "当前车辆：${state.selectedVehicleId ?: "未选择"}"
             tvWsStatus.text = "实时通道：${if (state.wsConnected) "已连接" else "未连接"}"
             tvRealtimeState.text = "最近收到的实时状态：${state.latestVehicleStateText ?: "-"}"
-
             tvCommandId.text = "commandId：${state.lastCommandId ?: "-"}"
             tvCommandType.text = "命令类型：${state.lastCommandType ?: "-"}"
             tvCommandResult.text = "命令结果：${state.lastCommandResult ?: "-"}"
@@ -128,6 +194,20 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             state.errorMessage?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
                 viewModel.clearErrorMessage()
+            }
+        }
+    }
+
+    private fun observeRealtimeState() {
+        realtimeViewModel.uiState.observe(viewLifecycleOwner) { state ->
+            viewModel.applyRealtimeConnection(state.wsConnected)
+
+            state.latestVehicleState?.let { wsState ->
+                viewModel.applyRealtimeVehicleState(wsState)
+            }
+
+            state.latestCommandAck?.let { ack ->
+                viewModel.applyRealtimeCommandAck(ack)
             }
         }
     }

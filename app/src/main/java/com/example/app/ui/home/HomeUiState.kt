@@ -10,6 +10,6 @@ data class HomeUiState(
     val selectedVehicleId: String? = null,
     val selectedState: VehicleStateResponse? = null,
     val emptyMessage: String? = null,
-    val loggedOut: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val loggedOut: Boolean = false
 )

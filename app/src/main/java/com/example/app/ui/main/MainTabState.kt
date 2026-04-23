@@ -1,5 +1,9 @@
 package com.example.app.ui.main
 
 enum class MainTabState {
-    HOME
+    HOME,
+    VEHICLE,
+    CONTROL,
+    HISTORY,
+    PROFILE
 }

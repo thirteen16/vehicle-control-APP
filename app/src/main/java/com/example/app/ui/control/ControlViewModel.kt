@@ -8,16 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.app.common.ResultState
 import com.example.app.data.model.response.WsCommandAckData
 import com.example.app.data.model.response.WsVehicleStateData
-import com.example.app.data.remote.ws.WsEventListener
 import com.example.app.data.repository.CommandRepository
-import com.example.app.data.repository.RealtimeRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class ControlViewModel(
-    private val commandRepository: CommandRepository,
-    private val realtimeRepository: RealtimeRepository
+    private val commandRepository: CommandRepository
 ) : ViewModel() {
 
     private val _uiState = MutableLiveData(ControlUiState(isLoading = true))
@@ -27,7 +24,6 @@ class ControlViewModel(
 
     init {
         loadSelectedVehicle()
-        connectWebSocket()
     }
 
     fun loadSelectedVehicle() {
@@ -40,79 +36,56 @@ class ControlViewModel(
         }
     }
 
-    fun connectWebSocket() {
-        if (realtimeRepository.isConnected()) {
-            _uiState.value = (_uiState.value ?: ControlUiState()).copy(
-                wsConnected = true
-            )
+    fun applyRealtimeConnection(connected: Boolean) {
+        _uiState.value = (_uiState.value ?: ControlUiState()).copy(
+            wsConnected = connected
+        )
+    }
+
+    fun applyRealtimeCommandAck(data: WsCommandAckData) {
+        val current = _uiState.value ?: ControlUiState()
+        val selectedVehicleId = current.selectedVehicleId
+
+        if (!selectedVehicleId.isNullOrBlank() &&
+            !data.vehicleId.isNullOrBlank() &&
+            data.vehicleId != selectedVehicleId
+        ) {
             return
         }
 
-        viewModelScope.launch {
-            realtimeRepository.connect(object : WsEventListener {
-                override fun onConnected(userId: Long?) {
-                    postStateUpdate {
-                        it.copy(
-                            wsConnected = true,
-                            infoMessage = "实时通道已连接"
-                        )
-                    }
-                }
+        pollingJob?.cancel()
 
-                override fun onCommandAck(data: WsCommandAckData) {
-                    pollingJob?.cancel()
-                    postStateUpdate {
-                        it.copy(
-                            isPolling = false,
-                            wsConnected = true,
-                            lastCommandId = data.commandId ?: it.lastCommandId,
-                            lastCommandType = data.type ?: it.lastCommandType,
-                            lastCommandResult = data.result ?: it.lastCommandResult,
-                            lastRequestTime = data.requestTime ?: it.lastRequestTime,
-                            lastResponseTime = data.responseTime ?: it.lastResponseTime,
-                            infoMessage = "收到实时 COMMAND_ACK"
-                        )
-                    }
-                }
+        _uiState.value = current.copy(
+            isPolling = false,
+            lastCommandId = data.commandId ?: current.lastCommandId,
+            lastCommandType = data.type ?: current.lastCommandType,
+            lastCommandResult = data.result ?: current.lastCommandResult,
+            lastRequestTime = data.requestTime ?: current.lastRequestTime,
+            lastResponseTime = data.responseTime ?: current.lastResponseTime
+        )
+    }
 
-                override fun onVehicleState(data: WsVehicleStateData) {
-                    val summary = buildVehicleStateSummary(data)
-                    postStateUpdate {
-                        it.copy(
-                            wsConnected = true,
-                            latestVehicleStateText = summary,
-                            infoMessage = "收到实时 VEHICLE_STATE"
-                        )
-                    }
-                }
+    fun applyRealtimeVehicleState(data: WsVehicleStateData) {
+        val current = _uiState.value ?: ControlUiState()
+        val selectedVehicleId = current.selectedVehicleId
 
-                override fun onError(message: String) {
-                    postStateUpdate {
-                        it.copy(
-                            wsConnected = false,
-                            errorMessage = message
-                        )
-                    }
-                }
-
-                override fun onClosed() {
-                    postStateUpdate {
-                        it.copy(
-                            wsConnected = false,
-                            infoMessage = "实时通道已断开"
-                        )
-                    }
-                }
-            })
+        if (!selectedVehicleId.isNullOrBlank() &&
+            !data.vehicleId.isNullOrBlank() &&
+            data.vehicleId != selectedVehicleId
+        ) {
+            return
         }
+
+        _uiState.value = current.copy(
+            latestVehicleStateText = buildVehicleStateSummary(data)
+        )
     }
 
     fun sendCommand(type: String) {
         val vehicleId = _uiState.value?.selectedVehicleId
-
         if (vehicleId.isNullOrBlank()) {
             _uiState.value = (_uiState.value ?: ControlUiState()).copy(
-                errorMessage = "请先在首页选择一辆车"
+                errorMessage = "请先在车辆页选择一辆车"
             )
             return
         }
@@ -177,13 +150,6 @@ class ControlViewModel(
         pollCommandResult(commandId)
     }
 
-    fun sendPing() {
-        val ok = realtimeRepository.sendPing()
-        _uiState.value = (_uiState.value ?: ControlUiState()).copy(
-            infoMessage = if (ok) "已发送 ping" else "发送 ping 失败，请先连接实时通道"
-        )
-    }
-
     private fun pollCommandResult(commandId: String) {
         pollingJob?.cancel()
 
@@ -240,12 +206,12 @@ class ControlViewModel(
     }
 
     private fun buildVehicleStateSummary(data: WsVehicleStateData): String {
-        return "锁:${data.lockStatus ?: "-"}  发动机:${data.engineStatus ?: "-"}  空调:${data.hvacStatus ?: "-"}  车窗:${data.windowStatus ?: "-"}  更新时间:${data.updatedTime ?: "-"}"
-    }
-
-    private fun postStateUpdate(transform: (ControlUiState) -> ControlUiState) {
-        val current = _uiState.value ?: ControlUiState()
-        _uiState.postValue(transform(current))
+        return "锁:${data.lockStatus ?: "-"} " +
+                "发动机:${data.engineStatus ?: "-"} " +
+                "空调:${data.hvacStatus ?: "-"} " +
+                "车窗:${data.windowStatus ?: "-"} " +
+                "油量:${data.fuelLevel ?: "-"} " +
+                "更新时间:${data.updatedTime ?: "-"}"
     }
 
     fun clearInfoMessage() {
@@ -263,17 +229,15 @@ class ControlViewModel(
     override fun onCleared() {
         super.onCleared()
         pollingJob?.cancel()
-        realtimeRepository.disconnect()
     }
 
     class Factory(
-        private val commandRepository: CommandRepository,
-        private val realtimeRepository: RealtimeRepository
+        private val commandRepository: CommandRepository
     ) : ViewModelProvider.Factory {
 
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ControlViewModel(commandRepository, realtimeRepository) as T
+            return ControlViewModel(commandRepository) as T
         }
     }
 }

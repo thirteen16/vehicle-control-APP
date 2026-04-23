@@ -14,6 +14,22 @@
         android:usesCleartextTraffic="true">
 
         <activity
+            android:name=".ui.pin.PinVerifyActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.pin.PinSetupActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.vehicle.location.VehicleLocationActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.vehicle.detail.VehicleDetailActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.control.ControlActivity"
             android:exported="false" />
 
@@ -37,7 +53,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="false" />
-
     </application>
 
 </manifest>

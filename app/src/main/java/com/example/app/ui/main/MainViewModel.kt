@@ -10,6 +10,7 @@ class MainViewModel : ViewModel() {
     val currentTab: LiveData<MainTabState> = _currentTab
 
     fun selectTab(tab: MainTabState) {
+        if (_currentTab.value == tab) return
         _currentTab.value = tab
     }
 }
