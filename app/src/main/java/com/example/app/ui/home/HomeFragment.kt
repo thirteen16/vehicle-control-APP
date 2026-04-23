@@ -1,13 +1,14 @@
 package com.example.app.ui.home
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
@@ -15,38 +16,34 @@ import com.example.app.common.UiStateTextResolver
 import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
-import com.example.app.ui.auth.login.LoginActivity
-import com.example.app.ui.main.AppRealtimeViewModel
-import com.example.app.ui.main.MainTabState
-import com.example.app.ui.main.MainViewModel
+import com.example.app.ui.vehicle.location.VehicleLocationActivity
 
 class HomeFragment : Fragment(R.layout.fragment_home) {
 
-    private lateinit var tvWelcome: TextView
-    private lateinit var tvUserInfo: TextView
+    private lateinit var progressBar: ProgressBar
     private lateinit var tvStateBanner: TextView
-    private lateinit var vehicleContainer: LinearLayout
-    private lateinit var tvEmptyTip: TextView
 
-    private lateinit var tvSelectedVehicleTitle: TextView
-    private lateinit var tvBrandModel: TextView
-    private lateinit var tvOnlineStatus: TextView
-    private lateinit var tvLockStatus: TextView
-    private lateinit var tvEngineStatus: TextView
-    private lateinit var tvHvacStatus: TextView
-    private lateinit var tvWindowStatus: TextView
-    private lateinit var tvMileage: TextView
-    private lateinit var tvFuelLevel: TextView
-    private lateinit var tvUpdatedTime: TextView
+    private lateinit var tvVehicleCount: TextView
 
-    private lateinit var btnRefreshState: Button
-    private lateinit var btnControlPlaceholder: Button
-    private lateinit var btnRealtimePlaceholder: Button
-    private lateinit var btnLogout: Button
+    private lateinit var tvCurrentVehicleName: TextView
+    private lateinit var tvCurrentVehicleId: TextView
+    private lateinit var tvCurrentBrandModel: TextView
+    private lateinit var tvCurrentOnlineStatus: TextView
+    private lateinit var tvCurrentLockStatus: TextView
+    private lateinit var tvCurrentEngineStatus: TextView
+    private lateinit var tvCurrentHvacStatus: TextView
+    private lateinit var tvCurrentWindowStatus: TextView
+    private lateinit var tvCurrentMileage: TextView
+    private lateinit var tvCurrentFuelLevel: TextView
+    private lateinit var tvCurrentUpdatedTime: TextView
+    private lateinit var ivRefreshCurrent: ImageView
+    private lateinit var ivCurrentLocation: ImageView
+
+    private lateinit var tvOtherVehicleTitle: TextView
+    private lateinit var tvEmptyOtherVehicles: TextView
+    private lateinit var otherVehicleContainer: LinearLayout
 
     private lateinit var viewModel: HomeViewModel
-    private lateinit var mainViewModel: MainViewModel
-    private lateinit var realtimeViewModel: AppRealtimeViewModel
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -66,98 +63,68 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             HomeViewModel.Factory(vehicleRepository, tokenStore)
         )[HomeViewModel::class.java]
 
-        mainViewModel = ViewModelProvider(requireActivity())[MainViewModel::class.java]
-        realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
-
         initViews(view)
         initListeners()
         observeUiState()
-        observeRealtimeState()
     }
 
     private fun initViews(view: View) {
-        tvWelcome = view.findViewById(R.id.tvWelcome)
-        tvUserInfo = view.findViewById(R.id.tvUserInfo)
+        progressBar = view.findViewById(R.id.progressBar)
         tvStateBanner = view.findViewById(R.id.tvStateBanner)
-        vehicleContainer = view.findViewById(R.id.vehicleContainer)
-        tvEmptyTip = view.findViewById(R.id.tvEmptyTip)
 
-        tvSelectedVehicleTitle = view.findViewById(R.id.tvSelectedVehicleTitle)
-        tvBrandModel = view.findViewById(R.id.tvBrandModel)
-        tvOnlineStatus = view.findViewById(R.id.tvOnlineStatus)
-        tvLockStatus = view.findViewById(R.id.tvLockStatus)
-        tvEngineStatus = view.findViewById(R.id.tvEngineStatus)
-        tvHvacStatus = view.findViewById(R.id.tvHvacStatus)
-        tvWindowStatus = view.findViewById(R.id.tvWindowStatus)
-        tvMileage = view.findViewById(R.id.tvMileage)
-        tvFuelLevel = view.findViewById(R.id.tvFuelLevel)
-        tvUpdatedTime = view.findViewById(R.id.tvUpdatedTime)
+        tvVehicleCount = view.findViewById(R.id.tvVehicleCount)
 
-        btnRefreshState = view.findViewById(R.id.btnRefreshState)
-        btnControlPlaceholder = view.findViewById(R.id.btnControlPlaceholder)
-        btnRealtimePlaceholder = view.findViewById(R.id.btnRealtimePlaceholder)
-        btnLogout = view.findViewById(R.id.btnLogout)
+        tvCurrentVehicleName = view.findViewById(R.id.tvCurrentVehicleName)
+        tvCurrentVehicleId = view.findViewById(R.id.tvCurrentVehicleId)
+        tvCurrentBrandModel = view.findViewById(R.id.tvCurrentBrandModel)
+        tvCurrentOnlineStatus = view.findViewById(R.id.tvCurrentOnlineStatus)
+        tvCurrentLockStatus = view.findViewById(R.id.tvCurrentLockStatus)
+        tvCurrentEngineStatus = view.findViewById(R.id.tvCurrentEngineStatus)
+        tvCurrentHvacStatus = view.findViewById(R.id.tvCurrentHvacStatus)
+        tvCurrentWindowStatus = view.findViewById(R.id.tvCurrentWindowStatus)
+        tvCurrentMileage = view.findViewById(R.id.tvCurrentMileage)
+        tvCurrentFuelLevel = view.findViewById(R.id.tvCurrentFuelLevel)
+        tvCurrentUpdatedTime = view.findViewById(R.id.tvCurrentUpdatedTime)
+        ivRefreshCurrent = view.findViewById(R.id.ivRefreshCurrent)
+        ivCurrentLocation = view.findViewById(R.id.ivCurrentLocation)
+
+        tvOtherVehicleTitle = view.findViewById(R.id.tvOtherVehicleTitle)
+        tvEmptyOtherVehicles = view.findViewById(R.id.tvEmptyOtherVehicles)
+        otherVehicleContainer = view.findViewById(R.id.otherVehicleContainer)
     }
 
     private fun initListeners() {
-        btnRefreshState.setOnClickListener {
+        ivRefreshCurrent.setOnClickListener {
             viewModel.refreshSelectedVehicleState()
         }
 
-        btnControlPlaceholder.setOnClickListener {
-            mainViewModel.selectTab(MainTabState.CONTROL)
-        }
+        ivCurrentLocation.setOnClickListener {
+            val vehicleId = viewModel.uiState.value?.selectedVehicleId
+            if (vehicleId.isNullOrBlank()) {
+                Toast.makeText(requireContext(), "当前没有已绑定车辆", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
-        btnRealtimePlaceholder.setOnClickListener {
-            realtimeViewModel.connectIfNeeded()
-        }
-
-        btnLogout.setOnClickListener {
-            viewModel.logout()
+            startActivity(
+                Intent(requireContext(), VehicleLocationActivity::class.java).apply {
+                    putExtra(VehicleLocationActivity.EXTRA_VEHICLE_ID, vehicleId)
+                }
+            )
         }
     }
 
     private fun observeUiState() {
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            tvWelcome.text = "欢迎使用 CarControlAPP"
-            tvUserInfo.text = "当前登录用户：${state.username}"
+            progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
 
-            renderVehicleList(state)
-            renderSelectedVehicleState(state)
-            renderStateBanner(state)
-
-            tvEmptyTip.visibility = View.GONE
-            tvEmptyTip.text = ""
-
-            if (state.loggedOut) {
-                val intent = Intent(requireContext(), LoginActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                }
-                startActivity(intent)
-            }
+            renderBanner(state)
+            renderVehicleCount(state)
+            renderCurrentVehicle(state)
+            renderOtherVehicles(state)
         }
     }
 
-    private fun observeRealtimeState() {
-        realtimeViewModel.uiState.observe(viewLifecycleOwner) { state ->
-            btnRealtimePlaceholder.text = if (state.wsConnected) {
-                "实时通道：已连接"
-            } else {
-                "实时通道：未连接"
-            }
-
-            state.latestVehicleState?.let { wsState ->
-                viewModel.applyRealtimeVehicleState(wsState)
-            }
-
-            val current = viewModel.uiState.value
-            if (current != null) {
-                renderStateBanner(current)
-            }
-        }
-    }
-
-    private fun renderStateBanner(state: HomeUiState) {
+    private fun renderBanner(state: HomeUiState) {
         when {
             !state.errorMessage.isNullOrBlank() -> {
                 tvStateBanner.visibility = View.VISIBLE
@@ -171,86 +138,110 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 tvStateBanner.setBackgroundResource(R.drawable.bg_notice_empty)
             }
 
-            realtimeViewModel.uiState.value?.wsConnected == false -> {
-                tvStateBanner.visibility = View.VISIBLE
-                tvStateBanner.text = UiStateTextResolver.disconnectedInfo()
-                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_info)
-            }
-
             else -> {
                 tvStateBanner.visibility = View.GONE
             }
         }
     }
 
-    private fun renderVehicleList(state: HomeUiState) {
-        vehicleContainer.removeAllViews()
-        val inflater = LayoutInflater.from(requireContext())
-
-        state.vehicles.forEach { vehicle ->
-            val itemView = inflater.inflate(R.layout.item_vehicle, vehicleContainer, false)
-
-            val root = itemView.findViewById<View>(R.id.rootVehicleItem)
-            val tvVehicleName = itemView.findViewById<TextView>(R.id.tvVehicleName)
-            val tvVehicleSub = itemView.findViewById<TextView>(R.id.tvVehicleSub)
-            val tvSelectedBadge = itemView.findViewById<TextView>(R.id.tvSelectedBadge)
-
-            tvVehicleName.text = vehicle.name.ifBlank { vehicle.vehicleId }
-
-            val onlineText = if (vehicle.onlineStatus == 1) "在线" else "离线"
-            val brandModelText = listOfNotNull(vehicle.brand, vehicle.model)
-                .filter { it.isNotBlank() }
-                .joinToString(" / ")
-                .ifBlank { "未命名车型" }
-
-            tvVehicleSub.text = "$brandModelText · $onlineText"
-
-            val isSelected = state.selectedVehicleId == vehicle.vehicleId
-            tvSelectedBadge.visibility = if (isSelected) View.VISIBLE else View.GONE
-
-            if (isSelected) {
-                root.setBackgroundColor(Color.parseColor("#DFF3E4"))
-            } else {
-                root.setBackgroundColor(Color.parseColor("#F5F5F5"))
-            }
-
-            root.setOnClickListener {
-                viewModel.selectVehicle(vehicle.vehicleId)
-            }
-
-            vehicleContainer.addView(itemView)
-        }
+    private fun renderVehicleCount(state: HomeUiState) {
+        tvVehicleCount.text = state.vehicles.size.toString()
     }
 
-    private fun renderSelectedVehicleState(state: HomeUiState) {
+    private fun renderCurrentVehicle(state: HomeUiState) {
         val selectedState = state.selectedState
         val selectedVehicle = state.vehicles.firstOrNull { it.vehicleId == state.selectedVehicleId }
 
-        val title = selectedState?.name?.ifBlank { null }
+        val vehicleName = selectedState?.name?.ifBlank { null }
             ?: selectedVehicle?.name?.ifBlank { null }
-            ?: state.selectedVehicleId
-            ?: "暂无车辆"
+            ?: "未绑定车辆"
 
-        tvSelectedVehicleTitle.text = "当前车辆：$title"
+        val vehicleId = state.selectedVehicleId ?: "-"
+        val brand = selectedState?.brand ?: selectedVehicle?.brand ?: "-"
+        val model = selectedState?.model ?: selectedVehicle?.model ?: "-"
 
-        val brand = selectedState?.brand ?: selectedVehicle?.brand
-        val model = selectedState?.model ?: selectedVehicle?.model
-
-        tvBrandModel.text = "品牌 / 型号：${brand ?: "-"} / ${model ?: "-"}"
-
-        val onlineStatus = when (selectedState?.onlineStatus ?: selectedVehicle?.onlineStatus) {
+        val onlineText = when (selectedState?.onlineStatus ?: selectedVehicle?.onlineStatus) {
             1 -> "在线"
             0 -> "离线"
             else -> "-"
         }
 
-        tvOnlineStatus.text = "在线状态：$onlineStatus"
-        tvLockStatus.text = "锁状态：${selectedState?.lockStatus ?: selectedVehicle?.lockStatus ?: "-"}"
-        tvEngineStatus.text = "发动机：${selectedState?.engineStatus ?: selectedVehicle?.engineStatus ?: "-"}"
-        tvHvacStatus.text = "空调：${selectedState?.hvacStatus ?: selectedVehicle?.hvacStatus ?: "-"}"
-        tvWindowStatus.text = "车窗：${selectedState?.windowStatus ?: selectedVehicle?.windowStatus ?: "-"}"
-        tvMileage.text = "里程：${selectedState?.mileage ?: selectedVehicle?.mileage ?: "-"} km"
-        tvFuelLevel.text = "油量：${selectedState?.fuelLevel ?: selectedVehicle?.fuelLevel ?: "-"}%"
-        tvUpdatedTime.text = "更新时间：${selectedState?.updatedTime ?: selectedVehicle?.updatedTime ?: "-"}"
+        val lockText = selectedState?.lockStatus ?: selectedVehicle?.lockStatus ?: "-"
+        val engineText = selectedState?.engineStatus ?: selectedVehicle?.engineStatus ?: "-"
+        val hvacText = selectedState?.hvacStatus ?: selectedVehicle?.hvacStatus ?: "-"
+        val windowText = selectedState?.windowStatus ?: selectedVehicle?.windowStatus ?: "-"
+        val mileageText = "${selectedState?.mileage ?: selectedVehicle?.mileage ?: "-"} km"
+        val fuelText = "${selectedState?.fuelLevel ?: selectedVehicle?.fuelLevel ?: "-"}%"
+        val updatedText = selectedState?.updatedTime ?: selectedVehicle?.updatedTime ?: "-"
+
+        tvCurrentVehicleName.text = vehicleName
+        tvCurrentVehicleId.text = "vehicleId：$vehicleId"
+        tvCurrentBrandModel.text = "品牌 / 型号：$brand / $model"
+        tvCurrentOnlineStatus.text = "在线状态：$onlineText"
+        tvCurrentLockStatus.text = "车锁状态：$lockText"
+        tvCurrentEngineStatus.text = "发动机：$engineText"
+        tvCurrentHvacStatus.text = "空调：$hvacText"
+        tvCurrentWindowStatus.text = "车窗：$windowText"
+        tvCurrentMileage.text = "总里程：$mileageText"
+        tvCurrentFuelLevel.text = "油量：$fuelText"
+        tvCurrentUpdatedTime.text = "更新时间：$updatedText"
+
+        val hasSelectedVehicle = !state.selectedVehicleId.isNullOrBlank()
+        ivRefreshCurrent.isEnabled = hasSelectedVehicle
+        ivRefreshCurrent.alpha = if (hasSelectedVehicle) 1f else 0.45f
+
+        ivCurrentLocation.isEnabled = hasSelectedVehicle
+        ivCurrentLocation.alpha = if (hasSelectedVehicle) 1f else 0.45f
+    }
+
+    private fun renderOtherVehicles(state: HomeUiState) {
+        otherVehicleContainer.removeAllViews()
+
+        val otherVehicles = state.vehicles.filter { it.vehicleId != state.selectedVehicleId }
+
+        tvOtherVehicleTitle.text = "其他车辆 (${otherVehicles.size})"
+        tvEmptyOtherVehicles.visibility = if (otherVehicles.isEmpty()) View.VISIBLE else View.GONE
+        otherVehicleContainer.visibility = if (otherVehicles.isEmpty()) View.GONE else View.VISIBLE
+
+        val inflater = LayoutInflater.from(requireContext())
+
+        otherVehicles.forEach { vehicle ->
+            val itemView = inflater.inflate(R.layout.item_home_vehicle, otherVehicleContainer, false)
+
+            val root = itemView.findViewById<View>(R.id.rootVehicleCard)
+            val tvName = itemView.findViewById<TextView>(R.id.tvVehicleName)
+            val tvVehicleId = itemView.findViewById<TextView>(R.id.tvVehicleId)
+            val tvBrandModel = itemView.findViewById<TextView>(R.id.tvBrandModel)
+            val tvMileage = itemView.findViewById<TextView>(R.id.tvMileage)
+            val tvHint = itemView.findViewById<TextView>(R.id.tvHint)
+            val ivLocation = itemView.findViewById<ImageView>(R.id.ivLocation)
+
+            val displayName = vehicle.name.ifBlank { vehicle.vehicleId }
+            val brandModelText = listOfNotNull(vehicle.brand, vehicle.model)
+                .filter { it.isNotBlank() }
+                .joinToString(" / ")
+                .ifBlank { "暂无车型信息" }
+
+            tvName.text = displayName
+            tvVehicleId.text = "vehicleId：${vehicle.vehicleId}"
+            tvBrandModel.text = "品牌 / 型号：$brandModelText"
+            tvMileage.text = "总里程：${vehicle.mileage ?: "-"} km"
+            tvHint.text = "点击卡片可切换为当前车辆"
+
+            root.setOnClickListener {
+                viewModel.selectVehicle(vehicle.vehicleId)
+                Toast.makeText(requireContext(), "已切换当前车辆：$displayName", Toast.LENGTH_SHORT).show()
+            }
+
+            ivLocation.setOnClickListener {
+                startActivity(
+                    Intent(requireContext(), VehicleLocationActivity::class.java).apply {
+                        putExtra(VehicleLocationActivity.EXTRA_VEHICLE_ID, vehicle.vehicleId)
+                    }
+                )
+            }
+
+            otherVehicleContainer.addView(itemView)
+        }
     }
 }

@@ -10,7 +10,6 @@ import com.example.app.ui.main.AppRealtimeViewModel
 import com.example.app.ui.main.MainTabState
 import com.example.app.ui.main.MainViewModel
 import com.example.app.ui.profile.ProfileFragment
-import com.example.app.ui.vehicle.list.VehicleListFragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
@@ -48,11 +47,6 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
 
-                R.id.menu_vehicle -> {
-                    viewModel.selectTab(MainTabState.VEHICLE)
-                    true
-                }
-
                 R.id.menu_control -> {
                     viewModel.selectTab(MainTabState.CONTROL)
                     true
@@ -77,7 +71,6 @@ class MainActivity : AppCompatActivity() {
         viewModel.currentTab.observe(this) { tab ->
             val fragment = when (tab) {
                 MainTabState.HOME -> HomeFragment()
-                MainTabState.VEHICLE -> VehicleListFragment()
                 MainTabState.CONTROL -> ControlFragment()
                 MainTabState.HISTORY -> CommandHistoryFragment()
                 MainTabState.PROFILE -> ProfileFragment()
@@ -85,7 +78,6 @@ class MainActivity : AppCompatActivity() {
 
             val selectedItemId = when (tab) {
                 MainTabState.HOME -> R.id.menu_home
-                MainTabState.VEHICLE -> R.id.menu_vehicle
                 MainTabState.CONTROL -> R.id.menu_control
                 MainTabState.HISTORY -> R.id.menu_history
                 MainTabState.PROFILE -> R.id.menu_profile

@@ -20,6 +20,7 @@ class RegisterActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_PREFILL_ACCOUNT = "extra_prefill_account"
+        const val EXTRA_PREFILL_PASSWORD = "extra_prefill_password"
     }
 
     private lateinit var etUsername: EditText
@@ -95,13 +96,16 @@ class RegisterActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
 
+                val registeredAccount = state.registeredAccount ?: etUsername.text.toString().trim()
+                val registeredPassword = etPassword.text.toString()
+
                 Handler(Looper.getMainLooper()).postDelayed({
                     setResult(
                         RESULT_OK,
-                        Intent().putExtra(
-                            EXTRA_PREFILL_ACCOUNT,
-                            state.registeredAccount ?: etUsername.text.toString().trim()
-                        )
+                        Intent().apply {
+                            putExtra(EXTRA_PREFILL_ACCOUNT, registeredAccount)
+                            putExtra(EXTRA_PREFILL_PASSWORD, registeredPassword)
+                        }
                     )
                     finish()
                 }, 1000)

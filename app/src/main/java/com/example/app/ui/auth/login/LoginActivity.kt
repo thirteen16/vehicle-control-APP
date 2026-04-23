@@ -38,9 +38,21 @@ class LoginActivity : AppCompatActivity() {
     private val registerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val account = result.data?.getStringExtra(RegisterActivity.EXTRA_PREFILL_ACCOUNT)
+            val password = result.data?.getStringExtra(RegisterActivity.EXTRA_PREFILL_PASSWORD)
+
             if (!account.isNullOrBlank()) {
                 etAccount.setText(account)
                 etAccount.setSelection(account.length)
+            }
+
+            if (!password.isNullOrBlank()) {
+                etPassword.setText(password)
+                etPassword.setSelection(password.length)
+            }
+
+            if (!account.isNullOrBlank() || !password.isNullOrBlank()) {
+                cbRememberPassword.isChecked = false
+                prefillApplied = true
             }
         }
 
@@ -52,6 +64,7 @@ class LoginActivity : AppCompatActivity() {
                 etAccount.setSelection(phone.length)
                 etPassword.setText("")
                 cbRememberPassword.isChecked = false
+                prefillApplied = true
             }
         }
 
@@ -73,7 +86,6 @@ class LoginActivity : AppCompatActivity() {
         initViews()
         initListeners()
         observeUiState()
-
         viewModel.checkAutoLogin()
     }
 
@@ -128,7 +140,6 @@ class LoginActivity : AppCompatActivity() {
                 if (state.rememberedAccount.isNotEmpty()) {
                     etAccount.setSelection(state.rememberedAccount.length)
                 }
-
                 prefillApplied = true
             }
 
@@ -147,10 +158,8 @@ class LoginActivity : AppCompatActivity() {
             }
 
             if (state.loginSuccess) {
-                val displayName = state.loginData?.nickname
-                    ?: state.loginData?.username
-                    ?: etAccount.text.toString().trim()
-
+                val displayName =
+                    state.loginData?.nickname ?: state.loginData?.username ?: etAccount.text.toString().trim()
                 Toast.makeText(this, "登录成功，欢迎 $displayName", Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
