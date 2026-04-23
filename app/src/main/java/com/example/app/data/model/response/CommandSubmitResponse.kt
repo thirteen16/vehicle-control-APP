@@ -1,6 +1,6 @@
 package com.example.app.data.model.response
 
-data class CommandResultResponse(
+data class CommandSubmitResponse(
     val id: Long? = null,
     val commandId: String? = null,
     val vehicleId: String? = null,

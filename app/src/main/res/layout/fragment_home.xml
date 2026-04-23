@@ -27,19 +27,117 @@
             android:textSize="16sp" />
 
         <TextView
-            android:id="@+id/tvHomeTips"
+            android:id="@+id/tvVehicleSectionTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="这是首页占位页，后面会继续接入车辆列表、状态、控制、实时推送。"
-            android:textSize="14sp" />
+            android:layout_marginTop="28dp"
+            android:text="我的车辆"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvEmptyTip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="当前账号暂无绑定车辆"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/vehicleContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/tvStateSectionTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="当前车辆状态"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvSelectedVehicleTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="当前车辆："
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvBrandModel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="品牌 / 型号：" />
+
+        <TextView
+            android:id="@+id/tvOnlineStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="在线状态：" />
+
+        <TextView
+            android:id="@+id/tvLockStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="锁状态：" />
+
+        <TextView
+            android:id="@+id/tvEngineStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="发动机：" />
+
+        <TextView
+            android:id="@+id/tvHvacStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="空调：" />
+
+        <TextView
+            android:id="@+id/tvWindowStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="车窗：" />
+
+        <TextView
+            android:id="@+id/tvMileage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="里程：" />
+
+        <TextView
+            android:id="@+id/tvFuelLevel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="油量：" />
+
+        <TextView
+            android:id="@+id/tvUpdatedTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="更新时间：" />
 
         <Button
-            android:id="@+id/btnVehiclePlaceholder"
+            android:id="@+id/btnRefreshState"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="车辆列表（下一步）" />
+            android:text="刷新当前车辆状态" />
 
         <Button
             android:id="@+id/btnControlPlaceholder"

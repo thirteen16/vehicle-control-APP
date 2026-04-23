@@ -1,6 +1,6 @@
 package com.example.app.data.model.response
 
-data class CommandResultResponse(
+data class WsCommandAckData(
     val id: Long? = null,
     val commandId: String? = null,
     val vehicleId: String? = null,
@@ -10,7 +10,5 @@ data class CommandResultResponse(
     val requestPayload: String? = null,
     val responsePayload: String? = null,
     val requestTime: String? = null,
-    val responseTime: String? = null,
-    val createdTime: String? = null,
-    val updatedTime: String? = null
+    val responseTime: String? = null
 )

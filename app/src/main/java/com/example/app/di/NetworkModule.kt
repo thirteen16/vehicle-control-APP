@@ -4,7 +4,10 @@ import android.content.Context
 import com.example.app.common.Constants
 import com.example.app.data.local.TokenStore
 import com.example.app.data.remote.api.AuthApi
+import com.example.app.data.remote.api.CommandApi
+import com.example.app.data.remote.api.VehicleApi
 import com.example.app.data.remote.interceptor.AuthInterceptor
+import com.example.app.data.remote.ws.AppWebSocketClient
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -50,5 +53,17 @@ object NetworkModule {
 
     fun provideAuthApi(retrofit: Retrofit): AuthApi {
         return retrofit.create(AuthApi::class.java)
+    }
+
+    fun provideVehicleApi(retrofit: Retrofit): VehicleApi {
+        return retrofit.create(VehicleApi::class.java)
+    }
+
+    fun provideCommandApi(retrofit: Retrofit): CommandApi {
+        return retrofit.create(CommandApi::class.java)
+    }
+
+    fun provideAppWebSocketClient(okHttpClient: OkHttpClient): AppWebSocketClient {
+        return AppWebSocketClient(okHttpClient)
     }
 }
