@@ -2,16 +2,7 @@ package com.example.app.common
 
 object Constants {
 
-    /**
-     * 如果你用 Android 模拟器访问本机 Spring Boot：
-     * 10.0.2.2 = 宿主机 localhost
-     *10.67.68.31
-     * 如果你用真机调试，需要改成你电脑的局域网 IP，例如：
-     * http://10.67.68.31:8080/
-     */
-    const val BASE_URL = "http://10.67.68.31:8080/"
-
-    const val WS_BASE_URL = "ws://10.67.68.31:8080/ws/app?token="
+    const val DEFAULT_BASE_URL = "http://10.67.68.31:8080/"
 
     const val PREFS_TOKEN = "prefs_token"
     const val PREFS_USER_ID = "prefs_user_id"
@@ -19,4 +10,52 @@ object Constants {
 
     const val AUTH_HEADER = "Authorization"
     const val TOKEN_PREFIX = "Bearer "
+
+    @Volatile
+    var BASE_URL: String = DEFAULT_BASE_URL
+        private set
+
+    @Volatile
+    var WS_BASE_URL: String = toWsBaseUrl(DEFAULT_BASE_URL)
+        private set
+
+    fun applyServerBaseUrl(rawUrl: String): String {
+        val normalized = normalizeHttpBaseUrl(rawUrl)
+        BASE_URL = normalized
+        WS_BASE_URL = toWsBaseUrl(normalized)
+        return normalized
+    }
+
+    fun normalizeHttpBaseUrl(rawUrl: String): String {
+        var url = rawUrl.trim()
+
+        if (url.isBlank()) {
+            return DEFAULT_BASE_URL
+        }
+
+        if (!url.startsWith("http://", ignoreCase = true) &&
+            !url.startsWith("https://", ignoreCase = true)
+        ) {
+            url = "http://$url"
+        }
+
+        if (!url.endsWith("/")) {
+            url += "/"
+        }
+
+        return url
+    }
+
+    fun toWsBaseUrl(httpBaseUrl: String): String {
+        val normalized = normalizeHttpBaseUrl(httpBaseUrl)
+        return when {
+            normalized.startsWith("https://", ignoreCase = true) ->
+                normalized.replaceFirst("https://", "wss://", ignoreCase = true)
+
+            normalized.startsWith("http://", ignoreCase = true) ->
+                normalized.replaceFirst("http://", "ws://", ignoreCase = true)
+
+            else -> normalized
+        }
+    }
 }

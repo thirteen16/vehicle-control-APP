@@ -102,6 +102,16 @@ class AppRealtimeViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun reconnect() {
+        realtimeRepository.disconnect()
+        _uiState.value = (_uiState.value ?: AppRealtimeUiState()).copy(
+            isConnecting = false,
+            wsConnected = false,
+            errorMessage = null
+        )
+        connectIfNeeded()
+    }
+
     fun sendPing(): Boolean {
         return realtimeRepository.sendPing()
     }

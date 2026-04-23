@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
+import com.example.app.common.UiStateTextResolver
 import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
@@ -22,6 +23,7 @@ import com.example.app.ui.vehicle.detail.VehicleDetailActivity
 class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
 
     private lateinit var progressBar: ProgressBar
+    private lateinit var tvStateBanner: TextView
     private lateinit var tvCurrentVehicle: TextView
     private lateinit var tvVehicleCount: TextView
     private lateinit var tvEmptyTip: TextView
@@ -59,6 +61,7 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
 
     private fun initViews(view: View) {
         progressBar = view.findViewById(R.id.progressBar)
+        tvStateBanner = view.findViewById(R.id.tvStateBanner)
         tvCurrentVehicle = view.findViewById(R.id.tvCurrentVehicle)
         tvVehicleCount = view.findViewById(R.id.tvVehicleCount)
         tvEmptyTip = view.findViewById(R.id.tvEmptyTip)
@@ -94,7 +97,9 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
             tvCurrentVehicle.text = "当前车辆：$selectedName"
             tvVehicleCount.text = "车辆数量：${state.vehicles.size}"
 
-            tvEmptyTip.visibility = if (state.vehicles.isEmpty()) View.VISIBLE else View.GONE
+            renderStateBanner(state)
+
+            tvEmptyTip.visibility = View.GONE
             vehicleContainer.visibility = if (state.vehicles.isEmpty()) View.GONE else View.VISIBLE
 
             renderVehicleList(state)
@@ -103,10 +108,25 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
                 viewModel.clearInfoMessage()
             }
+        }
+    }
 
-            state.errorMessage?.let {
-                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
-                viewModel.clearErrorMessage()
+    private fun renderStateBanner(state: VehicleListUiState) {
+        when {
+            !state.errorMessage.isNullOrBlank() -> {
+                tvStateBanner.visibility = View.VISIBLE
+                tvStateBanner.text = "加载失败：${UiStateTextResolver.resolveError(state.errorMessage)}"
+                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_error)
+            }
+
+            state.vehicles.isEmpty() -> {
+                tvStateBanner.visibility = View.VISIBLE
+                tvStateBanner.text = UiStateTextResolver.vehicleEmptyMessage()
+                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_empty)
+            }
+
+            else -> {
+                tvStateBanner.visibility = View.GONE
             }
         }
     }
@@ -127,7 +147,7 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
 
             val displayName = vehicle.name.ifBlank { vehicle.vehicleId }
             val brandModel = listOfNotNull(vehicle.brand, vehicle.model)
-                .filter { !it.isNullOrBlank() }
+                .filter { it.isNotBlank() }
                 .joinToString(" / ")
                 .ifBlank { "未命名车型" }
 
@@ -144,7 +164,8 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
 
             tvVehicleName.text = displayName
             tvVehicleSub.text = "vehicleId：${vehicle.vehicleId}\n品牌 / 型号：$brandModel"
-            tvStatusLine.text = "在线：$onlineText   车锁：$lockText   发动机：$engineText\n空调：$hvacText   车窗：$windowText"
+            tvStatusLine.text =
+                "在线：$onlineText   车锁：$lockText   发动机：$engineText\n空调：$hvacText   车窗：$windowText"
 
             val isSelected = vehicle.vehicleId == state.selectedVehicleId
             tvSelectedBadge.visibility = if (isSelected) View.VISIBLE else View.GONE
@@ -156,6 +177,7 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
             btnSelectVehicle.text = if (isSelected) "当前车辆" else "切换为当前车辆"
             btnSelectVehicle.isEnabled = !isSelected
 
+            // 卡片点击：进入车辆详情页
             root.setOnClickListener {
                 startActivity(
                     Intent(requireContext(), VehicleDetailActivity::class.java).apply {
@@ -164,6 +186,7 @@ class VehicleListFragment : Fragment(R.layout.fragment_vehicle_list) {
                 )
             }
 
+            // 按钮点击：切换当前车辆
             btnSelectVehicle.setOnClickListener {
                 viewModel.selectVehicle(vehicle.vehicleId)
             }

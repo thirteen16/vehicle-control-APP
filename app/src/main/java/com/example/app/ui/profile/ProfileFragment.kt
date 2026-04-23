@@ -11,15 +11,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
+import com.example.app.common.Constants
 import com.example.app.data.local.PinStore
 import com.example.app.data.local.SelectedVehicleStore
+import com.example.app.data.local.ServerConfigStore
 import com.example.app.data.local.TokenStore
 import com.example.app.data.repository.AuthRepository
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
 import com.example.app.ui.auth.forget.ForgetPasswordActivity
 import com.example.app.ui.auth.login.LoginActivity
+import com.example.app.ui.main.AppRealtimeViewModel
 import com.example.app.ui.pin.PinSetupActivity
+import com.example.app.ui.settings.ServerConfigActivity
 
 class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
@@ -31,13 +35,17 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private lateinit var tvUserId: TextView
     private lateinit var tvSelectedVehicle: TextView
     private lateinit var tvPinStatus: TextView
+    private lateinit var tvServerUrl: TextView
     private lateinit var btnRefreshProfile: Button
     private lateinit var btnResetPassword: Button
     private lateinit var btnManagePin: Button
+    private lateinit var btnServerConfig: Button
     private lateinit var btnLogout: Button
 
     private lateinit var viewModel: ProfileViewModel
     private lateinit var pinStore: PinStore
+    private lateinit var serverConfigStore: ServerConfigStore
+    private lateinit var realtimeViewModel: AppRealtimeViewModel
 
     private val resetPasswordLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -54,6 +62,19 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private val pinManageLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             refreshPinStatus()
+        }
+
+    private val serverConfigLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                refreshServerStatus()
+                realtimeViewModel.reconnect()
+                Toast.makeText(
+                    requireContext(),
+                    "服务器地址已应用，实时通道正在重连",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -75,6 +96,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         val vehicleRepository = VehicleRepository(vehicleApi, selectedVehicleStore)
 
         pinStore = PinStore(appContext)
+        serverConfigStore = ServerConfigStore(appContext)
+        realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
 
         viewModel = ViewModelProvider(
             this,
@@ -89,11 +112,13 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         initListeners()
         observeUiState()
         refreshPinStatus()
+        refreshServerStatus()
     }
 
     override fun onResume() {
         super.onResume()
         refreshPinStatus()
+        refreshServerStatus()
     }
 
     private fun initViews(view: View) {
@@ -105,9 +130,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         tvUserId = view.findViewById(R.id.tvUserId)
         tvSelectedVehicle = view.findViewById(R.id.tvSelectedVehicle)
         tvPinStatus = view.findViewById(R.id.tvPinStatus)
+        tvServerUrl = view.findViewById(R.id.tvServerUrl)
         btnRefreshProfile = view.findViewById(R.id.btnRefreshProfile)
         btnResetPassword = view.findViewById(R.id.btnResetPassword)
         btnManagePin = view.findViewById(R.id.btnManagePin)
+        btnServerConfig = view.findViewById(R.id.btnServerConfig)
         btnLogout = view.findViewById(R.id.btnLogout)
     }
 
@@ -131,6 +158,12 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
             )
         }
 
+        btnServerConfig.setOnClickListener {
+            serverConfigLauncher.launch(
+                Intent(requireContext(), ServerConfigActivity::class.java)
+            )
+        }
+
         btnLogout.setOnClickListener {
             viewModel.logout()
         }
@@ -142,6 +175,11 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         } else {
             "PIN 状态：未设置"
         }
+    }
+
+    private fun refreshServerStatus() {
+        val currentBaseUrl = serverConfigStore.getBaseUrl()
+        tvServerUrl.text = "服务器地址：$currentBaseUrl\nWebSocket：${Constants.WS_BASE_URL}"
     }
 
     private fun observeUiState() {

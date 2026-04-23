@@ -14,6 +14,10 @@
         android:usesCleartextTraffic="true">
 
         <activity
+            android:name=".ui.settings.ServerConfigActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.pin.PinVerifyActivity"
             android:exported="false" />
 

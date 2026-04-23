@@ -2,174 +2,334 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_page_gradient"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="20dp">
 
         <TextView
-            android:id="@+id/tvSelectedVehicle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="当前车辆："
-            android:textSize="18sp"
+            android:text="远程控制"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tvWsStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="实时通道：未连接"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tvRealtimeState"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="最近收到的实时状态：-"
-            android:textSize="13sp" />
+            android:text="支持状态感知、PIN 验证、执行中禁用和风险操作确认。"
+            android:textColor="#AEB9D6"
+            android:textSize="14sp" />
 
         <ProgressBar
             android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="16dp"
             android:visibility="gone" />
 
-        <Button
-            android:id="@+id/btnPing"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="发送 WebSocket ping" />
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_surface_card"
+            android:orientation="vertical"
+            android:padding="18dp">
 
-        <TextView
-            android:id="@+id/tvControlSectionTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="控制命令"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tvSelectedVehicle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="当前车辆：未选择"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btnLockOn"
+            <TextView
+                android:id="@+id/tvWsStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="实时通道：未连接"
+                android:textColor="#C8D2EC"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleOnlineStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="在线状态：-"
+                android:textColor="#E7ECFA"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleLockStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="车锁状态：-"
+                android:textColor="#E7ECFA"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleEngineStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="发动机：-"
+                android:textColor="#E7ECFA"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleHvacStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="空调：-"
+                android:textColor="#E7ECFA"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleWindowStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="车窗：-"
+                android:textColor="#E7ECFA"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvRealtimeState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="3dp"
+                android:text="最近实时状态：-"
+                android:textColor="#C8D2EC"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="开锁（LOCK_ON）" />
+            android:background="@drawable/bg_surface_card"
+            android:orientation="vertical"
+            android:padding="18dp">
 
-        <Button
-            android:id="@+id/btnLockOff"
+            <TextView
+                android:id="@+id/tvActionStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="执行状态：-"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCommandId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="commandId：-"
+                android:textColor="#E7ECFA"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvCommandType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="命令类型：-"
+                android:textColor="#E7ECFA"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvCommandResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="命令结果：-"
+                android:textColor="#E7ECFA"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvRequestTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="请求时间：-"
+                android:textColor="#C8D2EC"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/tvResponseTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="响应时间：-"
+                android:textColor="#C8D2EC"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="关锁（LOCK_OFF）" />
+            android:layout_marginTop="18dp"
+            android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/btnHvacOn"
+            <Button
+                android:id="@+id/btnLockOn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="上锁" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/btnLockOff"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="解锁" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="打开空调（HVAC_ON）" />
-
-        <Button
-            android:id="@+id/btnHvacOff"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="关闭空调（HVAC_OFF）" />
-
-        <Button
-            android:id="@+id/btnWindowOpen"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="打开车窗（WINDOW_OPEN）" />
-
-        <Button
-            android:id="@+id/btnWindowClose"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="关闭车窗（WINDOW_CLOSE）" />
-
-        <Button
-            android:id="@+id/btnEngineOn"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="启动发动机（ENGINE_ON）" />
-
-        <Button
-            android:id="@+id/btnEngineOff"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="关闭发动机（ENGINE_OFF）" />
-
-        <Button
-            android:id="@+id/btnStatusQuery"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="状态查询（STATUS_QUERY）" />
-
-        <TextView
-            android:id="@+id/tvResultSectionTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="最近一条命令结果"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvCommandId"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="commandId：" />
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvCommandType"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="命令类型：" />
+            <Button
+                android:id="@+id/btnHvacOn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="开启空调" />
 
-        <TextView
-            android:id="@+id/tvCommandResult"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="命令结果：" />
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
 
-        <TextView
-            android:id="@+id/tvRequestTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="请求时间：" />
+            <Button
+                android:id="@+id/btnHvacOff"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="关闭空调" />
+        </LinearLayout>
 
-        <TextView
-            android:id="@+id/tvResponseTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="响应时间：" />
-
-        <Button
-            android:id="@+id/btnRefreshResult"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="刷新最近命令结果" />
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnWindowOpen"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="打开车窗" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/btnWindowClose"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="关闭车窗" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnEngineOn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="启动发动机" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/btnEngineOff"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="关闭发动机" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnStatusQuery"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="状态查询" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/btnRefreshVehicleState"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="刷新车辆状态" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnRefreshResult"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="刷新命令结果" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/btnPing"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="发送 Ping" />
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

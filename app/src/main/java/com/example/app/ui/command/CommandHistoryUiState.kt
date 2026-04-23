@@ -6,7 +6,9 @@ data class CommandHistoryUiState(
     val isLoading: Boolean = false,
     val selectedVehicleId: String? = null,
     val isAllHistory: Boolean = false,
+    val resultFilter: CommandResultFilter = CommandResultFilter.ALL,
     val items: List<CommandHistoryItemResponse> = emptyList(),
+    val totalLoadedCount: Int = 0,
     val infoMessage: String? = null,
     val errorMessage: String? = null
 )

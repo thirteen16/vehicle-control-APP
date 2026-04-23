@@ -6,15 +6,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.app.common.ResultState
+import com.example.app.data.model.response.VehicleStateResponse
 import com.example.app.data.model.response.WsCommandAckData
 import com.example.app.data.model.response.WsVehicleStateData
 import com.example.app.data.repository.CommandRepository
+import com.example.app.data.repository.VehicleRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class ControlViewModel(
-    private val commandRepository: CommandRepository
+    private val commandRepository: CommandRepository,
+    private val vehicleRepository: VehicleRepository
 ) : ViewModel() {
 
     private val _uiState = MutableLiveData(ControlUiState(isLoading = true))
@@ -29,10 +32,82 @@ class ControlViewModel(
     fun loadSelectedVehicle() {
         viewModelScope.launch {
             val vehicleId = commandRepository.getSelectedVehicleId()
-            _uiState.value = (_uiState.value ?: ControlUiState()).copy(
-                isLoading = false,
-                selectedVehicleId = vehicleId
+            val current = _uiState.value ?: ControlUiState()
+
+            _uiState.value = current.copy(
+                isLoading = true,
+                selectedVehicleId = vehicleId,
+                errorMessage = null
             )
+
+            if (vehicleId.isNullOrBlank()) {
+                _uiState.value = current.copy(
+                    isLoading = false,
+                    selectedVehicleId = null,
+                    onlineStatus = null,
+                    lockStatus = null,
+                    engineStatus = null,
+                    hvacStatus = null,
+                    windowStatus = null,
+                    latestVehicleStateText = null,
+                    errorMessage = "请先在车辆页选择一辆车"
+                )
+                return@launch
+            }
+
+            refreshSelectedVehicleStateInternal(vehicleId)
+        }
+    }
+
+    fun refreshSelectedVehicleState() {
+        val vehicleId = _uiState.value?.selectedVehicleId
+        if (vehicleId.isNullOrBlank()) {
+            loadSelectedVehicle()
+            return
+        }
+
+        viewModelScope.launch {
+            val current = _uiState.value ?: ControlUiState()
+            _uiState.value = current.copy(
+                isLoading = true,
+                errorMessage = null
+            )
+            refreshSelectedVehicleStateInternal(vehicleId)
+        }
+    }
+
+    private suspend fun refreshSelectedVehicleStateInternal(vehicleId: String) {
+        when (val result = vehicleRepository.getVehicleState(vehicleId)) {
+            is ResultState.Success -> {
+                val current = _uiState.value ?: ControlUiState()
+                val state = result.data
+
+                _uiState.value = current.copy(
+                    isLoading = false,
+                    selectedVehicleId = vehicleId,
+                    onlineStatus = state.onlineStatus,
+                    lockStatus = state.lockStatus,
+                    engineStatus = state.engineStatus,
+                    hvacStatus = state.hvacStatus,
+                    windowStatus = state.windowStatus,
+                    latestVehicleStateText = buildVehicleStateSummary(state),
+                    errorMessage = null
+                )
+            }
+
+            is ResultState.Error -> {
+                val current = _uiState.value ?: ControlUiState()
+                _uiState.value = current.copy(
+                    isLoading = false,
+                    selectedVehicleId = vehicleId,
+                    errorMessage = result.message
+                )
+            }
+
+            ResultState.Loading -> {
+                val current = _uiState.value ?: ControlUiState()
+                _uiState.value = current.copy(isLoading = true)
+            }
         }
     }
 
@@ -53,13 +128,23 @@ class ControlViewModel(
             return
         }
 
-        pollingJob?.cancel()
+        val result = data.result ?: current.lastCommandResult
+        val stillPending = result.equals("PENDING", ignoreCase = true)
+
+        if (!stillPending) {
+            pollingJob?.cancel()
+        }
 
         _uiState.value = current.copy(
-            isPolling = false,
+            isPolling = stillPending,
+            pendingCommandType = if (stillPending) {
+                data.type ?: current.pendingCommandType
+            } else {
+                null
+            },
             lastCommandId = data.commandId ?: current.lastCommandId,
             lastCommandType = data.type ?: current.lastCommandType,
-            lastCommandResult = data.result ?: current.lastCommandResult,
+            lastCommandResult = result,
             lastRequestTime = data.requestTime ?: current.lastRequestTime,
             lastResponseTime = data.responseTime ?: current.lastResponseTime
         )
@@ -77,6 +162,11 @@ class ControlViewModel(
         }
 
         _uiState.value = current.copy(
+            onlineStatus = data.onlineStatus ?: current.onlineStatus,
+            lockStatus = data.lockStatus ?: current.lockStatus,
+            engineStatus = data.engineStatus ?: current.engineStatus,
+            hvacStatus = data.hvacStatus ?: current.hvacStatus,
+            windowStatus = data.windowStatus ?: current.windowStatus,
             latestVehicleStateText = buildVehicleStateSummary(data)
         )
     }
@@ -95,6 +185,7 @@ class ControlViewModel(
         _uiState.value = (_uiState.value ?: ControlUiState()).copy(
             isLoading = true,
             isPolling = false,
+            pendingCommandType = type,
             errorMessage = null,
             infoMessage = null
         )
@@ -104,12 +195,15 @@ class ControlViewModel(
                 is ResultState.Success -> {
                     val data = result.data
                     val commandId = data.commandId
+                    val latestResult = data.result ?: "PENDING"
+                    val stillPending = latestResult.equals("PENDING", ignoreCase = true)
 
                     _uiState.value = (_uiState.value ?: ControlUiState()).copy(
                         isLoading = false,
+                        pendingCommandType = if (stillPending) type else null,
                         lastCommandId = commandId,
                         lastCommandType = data.type ?: type,
-                        lastCommandResult = data.result ?: "PENDING",
+                        lastCommandResult = latestResult,
                         lastRequestTime = data.requestTime ?: data.createdTime,
                         lastResponseTime = data.responseTime,
                         infoMessage = "命令已发送"
@@ -124,6 +218,7 @@ class ControlViewModel(
                     _uiState.value = (_uiState.value ?: ControlUiState()).copy(
                         isLoading = false,
                         isPolling = false,
+                        pendingCommandType = null,
                         errorMessage = result.message
                     )
                 }
@@ -165,9 +260,15 @@ class ControlViewModel(
                     is ResultState.Success -> {
                         val data = result.data
                         val latestResult = data.result ?: "PENDING"
+                        val stillPending = latestResult.equals("PENDING", ignoreCase = true)
 
                         _uiState.value = (_uiState.value ?: ControlUiState()).copy(
-                            isPolling = latestResult.equals("PENDING", ignoreCase = true),
+                            isPolling = stillPending,
+                            pendingCommandType = if (stillPending) {
+                                data.type ?: _uiState.value?.pendingCommandType
+                            } else {
+                                null
+                            },
                             lastCommandId = data.commandId ?: commandId,
                             lastCommandType = data.type ?: _uiState.value?.lastCommandType,
                             lastCommandResult = latestResult,
@@ -175,9 +276,10 @@ class ControlViewModel(
                             lastResponseTime = data.responseTime
                         )
 
-                        if (!latestResult.equals("PENDING", ignoreCase = true)) {
+                        if (!stillPending) {
                             _uiState.value = (_uiState.value ?: ControlUiState()).copy(
                                 isPolling = false,
+                                pendingCommandType = null,
                                 infoMessage = "命令结果已更新"
                             )
                             return@launch
@@ -187,6 +289,7 @@ class ControlViewModel(
                     is ResultState.Error -> {
                         _uiState.value = (_uiState.value ?: ControlUiState()).copy(
                             isPolling = false,
+                            pendingCommandType = null,
                             errorMessage = result.message
                         )
                         return@launch
@@ -200,17 +303,27 @@ class ControlViewModel(
 
             _uiState.value = (_uiState.value ?: ControlUiState()).copy(
                 isPolling = false,
+                pendingCommandType = null,
                 infoMessage = "命令仍在等待设备回执，请确认 mock-device 或车机是否在线"
             )
         }
     }
 
     private fun buildVehicleStateSummary(data: WsVehicleStateData): String {
-        return "锁:${data.lockStatus ?: "-"} " +
-                "发动机:${data.engineStatus ?: "-"} " +
-                "空调:${data.hvacStatus ?: "-"} " +
-                "车窗:${data.windowStatus ?: "-"} " +
-                "油量:${data.fuelLevel ?: "-"} " +
+        return "锁:${data.lockStatus ?: "-"}  " +
+                "发动机:${data.engineStatus ?: "-"}  " +
+                "空调:${data.hvacStatus ?: "-"}  " +
+                "车窗:${data.windowStatus ?: "-"}  " +
+                "油量:${data.fuelLevel ?: "-"}  " +
+                "更新时间:${data.updatedTime ?: "-"}"
+    }
+
+    private fun buildVehicleStateSummary(data: VehicleStateResponse): String {
+        return "锁:${data.lockStatus ?: "-"}  " +
+                "发动机:${data.engineStatus ?: "-"}  " +
+                "空调:${data.hvacStatus ?: "-"}  " +
+                "车窗:${data.windowStatus ?: "-"}  " +
+                "油量:${data.fuelLevel ?: "-"}  " +
                 "更新时间:${data.updatedTime ?: "-"}"
     }
 
@@ -232,12 +345,13 @@ class ControlViewModel(
     }
 
     class Factory(
-        private val commandRepository: CommandRepository
+        private val commandRepository: CommandRepository,
+        private val vehicleRepository: VehicleRepository
     ) : ViewModelProvider.Factory {
 
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ControlViewModel(commandRepository) as T
+            return ControlViewModel(commandRepository, vehicleRepository) as T
         }
     }
 }

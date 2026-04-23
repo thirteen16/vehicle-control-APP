@@ -8,10 +8,10 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
+import com.example.app.common.UiStateTextResolver
 import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
@@ -24,6 +24,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private lateinit var tvWelcome: TextView
     private lateinit var tvUserInfo: TextView
+    private lateinit var tvStateBanner: TextView
     private lateinit var vehicleContainer: LinearLayout
     private lateinit var tvEmptyTip: TextView
 
@@ -77,6 +78,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private fun initViews(view: View) {
         tvWelcome = view.findViewById(R.id.tvWelcome)
         tvUserInfo = view.findViewById(R.id.tvUserInfo)
+        tvStateBanner = view.findViewById(R.id.tvStateBanner)
         vehicleContainer = view.findViewById(R.id.vehicleContainer)
         tvEmptyTip = view.findViewById(R.id.tvEmptyTip)
 
@@ -108,12 +110,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
         btnRealtimePlaceholder.setOnClickListener {
             realtimeViewModel.connectIfNeeded()
-            val connected = realtimeViewModel.uiState.value?.wsConnected == true
-            Toast.makeText(
-                requireContext(),
-                if (connected) "实时通道已连接" else "正在连接实时通道",
-                Toast.LENGTH_SHORT
-            ).show()
         }
 
         btnLogout.setOnClickListener {
@@ -128,14 +124,10 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
             renderVehicleList(state)
             renderSelectedVehicleState(state)
+            renderStateBanner(state)
 
-            tvEmptyTip.visibility = if (state.vehicles.isEmpty()) View.VISIBLE else View.GONE
-            tvEmptyTip.text = state.emptyMessage ?: ""
-
-            state.errorMessage?.let {
-                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
-                viewModel.clearErrorMessage()
-            }
+            tvEmptyTip.visibility = View.GONE
+            tvEmptyTip.text = ""
 
             if (state.loggedOut) {
                 val intent = Intent(requireContext(), LoginActivity::class.java).apply {
@@ -156,6 +148,37 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
             state.latestVehicleState?.let { wsState ->
                 viewModel.applyRealtimeVehicleState(wsState)
+            }
+
+            val current = viewModel.uiState.value
+            if (current != null) {
+                renderStateBanner(current)
+            }
+        }
+    }
+
+    private fun renderStateBanner(state: HomeUiState) {
+        when {
+            !state.errorMessage.isNullOrBlank() -> {
+                tvStateBanner.visibility = View.VISIBLE
+                tvStateBanner.text = "加载失败：${UiStateTextResolver.resolveError(state.errorMessage)}"
+                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_error)
+            }
+
+            state.vehicles.isEmpty() -> {
+                tvStateBanner.visibility = View.VISIBLE
+                tvStateBanner.text = UiStateTextResolver.homeEmptyMessage()
+                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_empty)
+            }
+
+            realtimeViewModel.uiState.value?.wsConnected == false -> {
+                tvStateBanner.visibility = View.VISIBLE
+                tvStateBanner.text = UiStateTextResolver.disconnectedInfo()
+                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_info)
+            }
+
+            else -> {
+                tvStateBanner.visibility = View.GONE
             }
         }
     }
