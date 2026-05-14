@@ -3,46 +3,50 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_dashboard_page_gradient"
+    android:background="@color/app_bg_start"
     android:orientation="vertical">
 
     <FrameLayout
         android:id="@+id/fragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="6dp" />
 
-    <FrameLayout
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/navCard"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="14dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="14dp">
+        android:layout_height="88dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="14dp"
+        app:cardBackgroundColor="@color/app_card"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="8dp"
+        app:strokeColor="@color/border_light"
+        app:strokeWidth="1dp">
 
-        <LinearLayout
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNavMain"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_bottom_nav_panel"
-            android:orientation="vertical"
-            android:paddingStart="8dp"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:paddingStart="10dp"
             android:paddingTop="8dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="8dp">
+            android:paddingEnd="10dp"
+            android:paddingBottom="8dp"
+            app:itemBackground="@drawable/bg_bottom_nav_item"
+            app:itemHorizontalTranslationEnabled="false"
+            app:itemIconSize="25dp"
+            app:itemIconTint="@color/selector_bottom_nav_icon"
+            app:itemRippleColor="@android:color/transparent"
+            app:itemTextAppearanceActive="@style/BottomNavTextActive"
+            app:itemTextAppearanceInactive="@style/BottomNavTextInactive"
+            app:itemTextColor="@color/selector_bottom_nav_text"
+            app:labelVisibilityMode="labeled"
+            app:menu="@menu/menu_main_bottom_nav" />
 
-            <com.google.android.material.bottomnavigation.BottomNavigationView
-                android:id="@+id/bottomNavMain"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@android:color/transparent"
-                app:itemIconSize="24dp"
-                app:itemIconTint="@color/selector_bottom_nav_icon"
-                app:itemRippleColor="@android:color/transparent"
-                app:itemTextColor="@color/selector_bottom_nav_text"
-                app:labelVisibilityMode="labeled"
-                app:menu="@menu/menu_main_bottom_nav" />
-
-        </LinearLayout>
-    </FrameLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

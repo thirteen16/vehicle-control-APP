@@ -3,21 +3,22 @@
 
     <item
         android:id="@+id/menu_home"
-        android:icon="@drawable/ic_nav_home"
-        android:title="主页" />
+        android:icon="@drawable/ic_nav_home_24"
+        android:title="首页" />
 
     <item
         android:id="@+id/menu_control"
-        android:icon="@drawable/ic_nav_control"
+        android:icon="@drawable/ic_nav_control_24"
         android:title="控制" />
 
     <item
         android:id="@+id/menu_history"
-        android:icon="@drawable/ic_nav_history"
+        android:icon="@drawable/ic_nav_history_24"
         android:title="历史" />
 
     <item
         android:id="@+id/menu_profile"
-        android:icon="@drawable/ic_nav_profile"
+        android:icon="@drawable/ic_nav_profile_24"
         android:title="我的" />
+
 </menu>

@@ -2,23 +2,46 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_car_page"
     android:fillViewport="true"
-    android:background="@drawable/bg_page_gradient">
+    android:overScrollMode="never">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingStart="20dp"
+        android:paddingTop="22dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="30dp">
 
-        <TextView
-            android:id="@+id/tvBack"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="← 返回"
-            android:textColor="#AFC2FF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvBack"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_car_icon_circle"
+                android:gravity="center"
+                android:text="‹"
+                android:textColor="@color/car_primary_dark"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="车辆详情"
+                android:textColor="@color/car_text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/progressBar"
@@ -26,74 +49,96 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="14dp"
             android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:background="@drawable/bg_surface_card"
+            android:background="@drawable/bg_car_current_card"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="22dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="车辆名称"
+                        android:textColor="#FFFFFF"
+                        android:textSize="26sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvVehicleId"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="vehicleId：-"
+                        android:textColor="#E9FFFA"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvCurrentBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_car_icon_circle"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp"
+                    android:text="当前车辆"
+                    android:textColor="@color/car_primary_dark"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/tvCurrentBadge"
+                android:id="@+id/tvBrandModel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="#2F7DFF"
-                android:paddingLeft="10dp"
-                android:paddingTop="4dp"
-                android:paddingRight="10dp"
-                android:paddingBottom="4dp"
-                android:text="当前选中车辆"
+                android:layout_marginTop="18dp"
+                android:text="品牌 / 型号：- / -"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="车辆详情"
-                android:textColor="#FFFFFF"
-                android:textSize="26sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvVehicleId"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="vehicleId：-"
-                android:textColor="#C8D2EC"
-                android:textSize="14sp" />
+                android:textSize="16sp" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_surface_card"
+            android:background="@drawable/bg_car_card"
             android:orientation="vertical"
             android:padding="20dp">
 
             <TextView
-                android:id="@+id/tvBrandModel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="品牌 / 型号：- / -"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp" />
+                android:text="车辆状态"
+                android:textColor="@color/car_text_primary"
+                android:textSize="19sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvOnlineStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="14dp"
                 android:text="在线状态：-"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -102,7 +147,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="车锁状态：-"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -111,7 +156,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="发动机：-"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -120,7 +165,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="空调：-"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -129,7 +174,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="车窗：-"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -138,7 +183,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="里程：- km"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -147,7 +192,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="油量：-%"
-                android:textColor="#E7ECFA"
+                android:textColor="@color/car_text_primary"
                 android:textSize="15sp" />
 
             <TextView
@@ -156,30 +201,41 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="更新时间：-"
-                android:textColor="#C8D2EC"
+                android:textColor="@color/car_text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>
 
         <Button
             android:id="@+id/btnSetCurrentVehicle"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="54dp"
             android:layout_marginTop="18dp"
-            android:text="设为当前车辆" />
+            android:background="@drawable/bg_car_primary_button"
+            android:text="设为当前车辆"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
 
         <Button
             android:id="@+id/btnViewLocation"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="54dp"
             android:layout_marginTop="12dp"
-            android:text="查看定位信息" />
+            android:background="@drawable/bg_car_secondary_button"
+            android:text="查看定位信息"
+            android:textAllCaps="false"
+            android:textColor="@color/car_text_primary"
+            android:textStyle="bold" />
 
         <Button
             android:id="@+id/btnRefresh"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="54dp"
             android:layout_marginTop="12dp"
-            android:text="刷新车辆状态" />
-
+            android:background="@drawable/bg_car_soft_button"
+            android:text="刷新车辆状态"
+            android:textAllCaps="false"
+            android:textColor="@color/car_primary_dark"
+            android:textStyle="bold" />
     </LinearLayout>
 </ScrollView>

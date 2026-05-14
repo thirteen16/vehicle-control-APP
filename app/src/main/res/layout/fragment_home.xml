@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_dashboard_page_gradient"
+    android:background="@drawable/bg_car_page"
     android:fillViewport="true"
     android:overScrollMode="never">
 
@@ -11,16 +11,16 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingStart="20dp"
-        android:paddingTop="20dp"
+        android:paddingTop="22dp"
         android:paddingEnd="20dp"
-        android:paddingBottom="28dp">
+        android:paddingBottom="30dp">
 
         <TextView
             android:id="@+id/tvPageTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="智能车控主页"
-            android:textColor="#F5F8FF"
+            android:text="智能车控"
+            android:textColor="@color/car_text_primary"
             android:textSize="30sp"
             android:textStyle="bold" />
 
@@ -28,9 +28,9 @@
             android:id="@+id/tvPageSubTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="未来感车联中枢，集中查看车辆与定位信息"
-            android:textColor="#9FB0D2"
+            android:layout_marginTop="6dp"
+            android:text="实时查看车辆状态，快速完成远程控制"
+            android:textColor="@color/car_text_secondary"
             android:textSize="14sp" />
 
         <TextView
@@ -40,7 +40,7 @@
             android:layout_marginTop="16dp"
             android:padding="14dp"
             android:text="状态提示"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/car_text_primary"
             android:textSize="14sp"
             android:visibility="gone" />
 
@@ -57,43 +57,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:background="@drawable/bg_dashboard_stat_card"
+            android:background="@drawable/bg_car_current_card"
             android:orientation="vertical"
-            android:padding="18dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="车辆总数"
-                android:textColor="#9FB0D2"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/tvVehicleCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="0"
-                android:textColor="#FFFFFF"
-                android:textSize="34sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="当前账号已绑定车辆数量"
-                android:textColor="#7F91B8"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:background="@drawable/bg_dashboard_current_card"
-            android:orientation="vertical"
-            android:padding="18dp">
+            android:padding="22dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -110,8 +76,8 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="当前绑定车辆"
-                        android:textColor="#AFC2FF"
+                        android:text="当前车辆"
+                        android:textColor="#E9FFFA"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
@@ -119,10 +85,10 @@
                         android:id="@+id/tvCurrentVehicleName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="8dp"
                         android:text="未绑定车辆"
                         android:textColor="#FFFFFF"
-                        android:textSize="24sp"
+                        android:textSize="26sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -131,20 +97,20 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="vehicleId：-"
-                        android:textColor="#A8B8D8"
+                        android:textColor="#E9FFFA"
                         android:textSize="13sp" />
                 </LinearLayout>
 
                 <ImageView
                     android:id="@+id/ivRefreshCurrent"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:background="@drawable/bg_dashboard_icon_circle"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/bg_car_icon_circle"
                     android:clickable="true"
                     android:focusable="true"
-                    android:padding="10dp"
+                    android:padding="11dp"
                     android:src="@android:drawable/ic_popup_sync"
-                    android:tint="#EAF1FF" />
+                    android:tint="@color/car_primary_dark" />
             </LinearLayout>
 
             <TextView
@@ -153,25 +119,79 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
                 android:text="品牌 / 型号：- / -"
-                android:textColor="#E7ECFA"
+                android:textColor="#FFFFFF"
                 android:textSize="15sp" />
 
-            <TextView
-                android:id="@+id/tvCurrentOnlineStatus"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="在线状态：-"
-                android:textColor="#E7ECFA"
-                android:textSize="15sp" />
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_car_stat_card"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="在线"
+                        android:textColor="@color/car_text_secondary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvCurrentOnlineStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="在线状态：-"
+                        android:textColor="@color/car_text_primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <Space
+                    android:layout_width="10dp"
+                    android:layout_height="1dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_car_stat_card"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="油量"
+                        android:textColor="@color/car_text_secondary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvCurrentFuelLevel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="油量：-%"
+                        android:textColor="@color/car_text_primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvCurrentLockStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="14dp"
                 android:text="车锁状态：-"
-                android:textColor="#E7ECFA"
+                android:textColor="#F3FFFC"
                 android:textSize="15sp" />
 
             <TextView
@@ -180,7 +200,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="发动机：-"
-                android:textColor="#E7ECFA"
+                android:textColor="#F3FFFC"
                 android:textSize="15sp" />
 
             <TextView
@@ -189,7 +209,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="空调：-"
-                android:textColor="#E7ECFA"
+                android:textColor="#F3FFFC"
                 android:textSize="15sp" />
 
             <TextView
@@ -198,55 +218,92 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="车窗：-"
-                android:textColor="#E7ECFA"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/tvCurrentMileage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="总里程：- km"
-                android:textColor="#E7ECFA"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/tvCurrentFuelLevel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="油量：-%"
-                android:textColor="#E7ECFA"
+                android:textColor="#F3FFFC"
                 android:textSize="15sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="10dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/tvCurrentUpdatedTime"
+                    android:id="@+id/tvCurrentMileage"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="更新时间：-"
-                    android:textColor="#A8B8D8"
-                    android:textSize="13sp" />
+                    android:text="总里程：- km"
+                    android:textColor="#F3FFFC"
+                    android:textSize="15sp" />
 
                 <ImageView
                     android:id="@+id/ivCurrentLocation"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:background="@drawable/bg_dashboard_icon_circle"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/bg_car_icon_circle"
                     android:clickable="true"
                     android:focusable="true"
-                    android:padding="10dp"
+                    android:padding="11dp"
                     android:src="@android:drawable/ic_menu_mylocation"
-                    android:tint="#EAF1FF" />
+                    android:tint="@color/car_primary_dark" />
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/tvCurrentUpdatedTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="更新时间：-"
+                android:textColor="#E9FFFA"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_car_card"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="18dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="车辆总数"
+                    android:textColor="@color/car_text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvVehicleCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="0"
+                    android:textColor="@color/car_text_primary"
+                    android:textSize="34sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_car_soft_button"
+                android:paddingStart="14dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="8dp"
+                android:text="已绑定"
+                android:textColor="@color/car_primary_dark"
+                android:textSize="13sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <TextView
@@ -255,7 +312,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
             android:text="其他车辆 (0)"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/car_text_primary"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -264,18 +321,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:gravity="center"
+            android:background="@drawable/bg_notice_empty"
+            android:padding="16dp"
             android:text="暂无其他车辆"
-            android:textColor="#8EA0C4"
-            android:textSize="14sp"
-            android:visibility="gone" />
+            android:textColor="@color/car_text_secondary"
+            android:textSize="14sp" />
 
         <LinearLayout
             android:id="@+id/otherVehicleContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
             android:orientation="vertical" />
-
     </LinearLayout>
 </ScrollView>
