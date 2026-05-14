@@ -227,12 +227,18 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
         if (state.isRefreshingCurrent) {
             if (refreshAnimator == null) {
-                refreshAnimator = ObjectAnimator.ofFloat(ivRefreshCurrent, View.ROTATION, 0f, 360f).apply {
+                refreshAnimator = ObjectAnimator.ofFloat(
+                    ivRefreshCurrent,
+                    View.ROTATION,
+                    0f,
+                    360f
+                ).apply {
                     duration = 700
                     repeatCount = ObjectAnimator.INFINITE
                     interpolator = LinearInterpolator()
                 }
             }
+
             if (refreshAnimator?.isStarted != true) {
                 refreshAnimator?.start()
             }
@@ -276,6 +282,15 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             tvMileage.text = "总里程：${vehicle.mileage ?: "-"} km"
             tvHint.text = "点击卡片可切换为当前车辆"
 
+            val isSelected = vehicle.vehicleId == state.selectedVehicleId
+            root.setBackgroundResource(
+                if (isSelected) {
+                    R.drawable.bg_vehicle_card_selected
+                } else {
+                    R.drawable.bg_vehicle_card_normal
+                }
+            )
+
             root.setOnClickListener {
                 viewModel.selectVehicle(vehicle.vehicleId)
                 Toast.makeText(requireContext(), "已切换当前车辆：$displayName", Toast.LENGTH_SHORT).show()
@@ -295,6 +310,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun buildOtherVehicleSignature(state: HomeUiState): String {
         val otherVehicles = state.vehicles.filter { it.vehicleId != state.selectedVehicleId }
+
         return buildString {
             otherVehicles.forEach { vehicle ->
                 append(vehicle.vehicleId)

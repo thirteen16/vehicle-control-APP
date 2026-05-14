@@ -61,6 +61,7 @@ class LoginActivity : AppCompatActivity() {
     private val forgetPasswordLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val phone = result.data?.getStringExtra(ForgetPasswordActivity.EXTRA_PREFILL_PHONE)
+
             if (!phone.isNullOrBlank()) {
                 etAccount.setText(phone)
                 etAccount.setSelection(phone.length)
@@ -79,6 +80,7 @@ class LoginActivity : AppCompatActivity() {
         val retrofit = NetworkModule.provideRetrofit(okHttpClient)
         val authApi = NetworkModule.provideAuthApi(retrofit)
         val authRepository = AuthRepository(authApi, tokenStore)
+
         LoginViewModel.Factory(authRepository)
     }
 
@@ -89,6 +91,7 @@ class LoginActivity : AppCompatActivity() {
         initViews()
         initListeners()
         observeUiState()
+
         viewModel.checkAutoLogin()
     }
 
@@ -124,6 +127,7 @@ class LoginActivity : AppCompatActivity() {
 
         tvTogglePassword.setOnClickListener {
             passwordVisible = !passwordVisible
+
             if (passwordVisible) {
                 etPassword.transformationMethod = HideReturnsTransformationMethod.getInstance()
                 tvTogglePassword.text = "隐藏"
@@ -131,12 +135,31 @@ class LoginActivity : AppCompatActivity() {
                 etPassword.transformationMethod = PasswordTransformationMethod.getInstance()
                 tvTogglePassword.text = "显示"
             }
+
             etPassword.setSelection(etPassword.text.length)
         }
 
+        /**
+         * 勾选自动登录时，必须自动勾选记住密码。
+         *
+         * 原因：
+         * token 过期后，需要用保存的账号密码重新请求 login 接口，
+         * 如果没有保存密码，就无法自动换新 token。
+         */
         cbAutoLogin.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
+            if (isChecked && !cbRememberPassword.isChecked) {
                 cbRememberPassword.isChecked = true
+            }
+        }
+
+        /**
+         * 如果用户手动取消记住密码，那么自动登录也必须取消。
+         *
+         * 因为自动登录依赖保存的密码。
+         */
+        cbRememberPassword.setOnCheckedChangeListener { _, isChecked ->
+            if (!isChecked && cbAutoLogin.isChecked) {
+                cbAutoLogin.isChecked = false
             }
         }
     }
@@ -146,20 +169,34 @@ class LoginActivity : AppCompatActivity() {
             if (state.rememberedInfoLoaded && !prefillApplied) {
                 etAccount.setText(state.rememberedAccount)
                 etPassword.setText(state.rememberedPassword)
-                cbRememberPassword.isChecked = state.rememberPassword
+
+                cbRememberPassword.isChecked = state.rememberPassword || state.autoLoginEnabled
                 cbAutoLogin.isChecked = state.autoLoginEnabled
 
                 if (state.rememberedAccount.isNotEmpty()) {
                     etAccount.setSelection(state.rememberedAccount.length)
                 }
+
                 prefillApplied = true
             }
 
-            progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
-            btnLogin.isEnabled = !state.isLoading
+            if (!state.autoLoginEnabled && cbAutoLogin.isChecked && !state.autoLogin) {
+                cbAutoLogin.isChecked = false
+            }
 
-            state.errorMessage?.let {
-                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+            progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
+
+            btnLogin.isEnabled = !state.isLoading
+            etAccount.isEnabled = !state.isLoading
+            etPassword.isEnabled = !state.isLoading
+            cbRememberPassword.isEnabled = !state.isLoading
+            cbAutoLogin.isEnabled = !state.isLoading
+            tvForgetPassword.isEnabled = !state.isLoading
+            tvGoRegister.isEnabled = !state.isLoading
+            tvTogglePassword.isEnabled = !state.isLoading
+
+            state.errorMessage?.let { message ->
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
             }
 
@@ -170,9 +207,12 @@ class LoginActivity : AppCompatActivity() {
             }
 
             if (state.loginSuccess) {
-                val displayName =
-                    state.loginData?.nickname ?: state.loginData?.username ?: etAccount.text.toString().trim()
+                val displayName = state.loginData?.nickname
+                    ?: state.loginData?.username
+                    ?: etAccount.text.toString().trim()
+
                 Toast.makeText(this, "登录成功，欢迎 $displayName", Toast.LENGTH_SHORT).show()
+
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
             }

@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 基础色 -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- App 主色：深色科技蓝 -->
+    <color name="app_bg_start">#050B18</color>
+    <color name="app_bg_center">#0B1730</color>
+    <color name="app_bg_end">#101A33</color>
+
+    <!-- 卡片与边框 -->
+    <color name="app_card">#1A2440</color>
+    <color name="app_card_deep">#111A2F</color>
+    <color name="app_card_light">#22304F</color>
+    <color name="app_stroke">#344568</color>
+
+    <!-- 文字 -->
+    <color name="text_primary">#F5F8FF</color>
+    <color name="text_secondary">#A8B8D8</color>
+    <color name="text_weak">#7F91B8</color>
+
+    <!-- 强调色 -->
+    <color name="accent_blue">#7EA7FF</color>
+    <color name="accent_cyan">#5EE7FF</color>
+    <color name="accent_green">#4ADE80</color>
+    <color name="accent_orange">#FDBA74</color>
+    <color name="accent_red">#FB7185</color>
+
+    <!-- 底部导航 -->
+    <color name="nav_selected">#FFFFFF</color>
+    <color name="nav_unselected">#7E8AA8</color>
 </resources>

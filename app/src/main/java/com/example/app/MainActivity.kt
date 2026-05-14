@@ -1,7 +1,9 @@
 package com.example.app
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.ui.command.CommandHistoryFragment
 import com.example.app.ui.control.ControlFragment
@@ -22,6 +24,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        setupSystemBars()
+
         bottomNav = findViewById(R.id.bottomNavMain)
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         realtimeViewModel = ViewModelProvider(this)[AppRealtimeViewModel::class.java]
@@ -37,6 +41,16 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         realtimeViewModel.connectIfNeeded()
+    }
+
+    private fun setupSystemBars() {
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.parseColor("#050B18")
+
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
     }
 
     private fun initBottomNav() {

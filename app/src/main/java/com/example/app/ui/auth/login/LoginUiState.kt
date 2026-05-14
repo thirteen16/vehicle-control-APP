@@ -8,6 +8,7 @@ data class LoginUiState(
     val autoLogin: Boolean = false,
     val loginData: LoginResponse? = null,
     val errorMessage: String? = null,
+
     val rememberedAccount: String = "",
     val rememberedPassword: String = "",
     val rememberPassword: Boolean = false,

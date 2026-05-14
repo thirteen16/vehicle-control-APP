@@ -10,6 +10,7 @@ import com.example.app.data.model.request.SendResetCodeRequest
 import com.example.app.data.model.response.CurrentUserResponse
 import com.example.app.data.model.response.LoginResponse
 import com.example.app.data.remote.api.AuthApi
+import retrofit2.HttpException
 
 class AuthRepository(
     private val authApi: AuthApi,
@@ -20,13 +21,96 @@ class AuthRepository(
         return !tokenStore.getToken().isNullOrBlank()
     }
 
-    suspend fun canAutoLogin(): Boolean {
-        val info = tokenStore.getRememberedLoginInfo()
-        return info.autoLoginEnabled && !tokenStore.getToken().isNullOrBlank()
-    }
-
     suspend fun getRememberedLoginInfo(): RememberedLoginInfo {
         return tokenStore.getRememberedLoginInfo()
+    }
+
+    suspend fun disableAutoLogin() {
+        tokenStore.setAutoLoginEnabled(false)
+    }
+
+    /**
+     * 校验本地 token 是否仍然有效。
+     *
+     * 逻辑：
+     * 1. 本地没有 token，直接认为无效；
+     * 2. 本地有 token，请求 /me；
+     * 3. /me 成功，说明 token 没过期，可以直接进主页；
+     * 4. /me 返回 401、403 或业务失败，说明 token 不可用，清除旧 token。
+     */
+    suspend fun validateSavedLoginSession(): ResultState<CurrentUserResponse> {
+        val token = tokenStore.getToken()
+
+        if (token.isNullOrBlank()) {
+            return ResultState.Error("本地没有保存登录状态")
+        }
+
+        return try {
+            val response = authApi.getCurrentUser()
+
+            if (response.code == 200 && response.data != null) {
+                ResultState.Success(response.data)
+            } else {
+                tokenStore.clearLoginSession()
+
+                ResultState.Error(
+                    message = response.message.ifBlank { "登录状态已过期" },
+                    code = response.code
+                )
+            }
+        } catch (e: HttpException) {
+            if (e.code() == 401 || e.code() == 403) {
+                tokenStore.clearLoginSession()
+
+                ResultState.Error(
+                    message = "登录状态已过期",
+                    code = e.code()
+                )
+            } else {
+                ResultState.Error(
+                    message = "自动登录校验失败：HTTP ${e.code()}",
+                    code = e.code()
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+
+            ResultState.Error(
+                message = "自动登录校验失败：" + (e.message ?: e.javaClass.simpleName)
+            )
+        }
+    }
+
+    /**
+     * token 过期后的自动重新登录。
+     *
+     * 前提：
+     * 1. 用户之前勾选过自动登录；
+     * 2. 本地保存了账号；
+     * 3. 本地保存了密码。
+     *
+     * 成功后会保存新的 token。
+     */
+    suspend fun autoLoginWithSavedCredentials(): ResultState<LoginResponse> {
+        val rememberedInfo = tokenStore.getRememberedLoginInfo()
+
+        if (!rememberedInfo.autoLoginEnabled) {
+            return ResultState.Error("未开启自动登录")
+        }
+
+        if (rememberedInfo.account.isBlank() || rememberedInfo.password.isBlank()) {
+            tokenStore.clearLoginSession()
+            tokenStore.setAutoLoginEnabled(false)
+
+            return ResultState.Error("自动登录需要保存账号和密码，请手动登录")
+        }
+
+        return login(
+            account = rememberedInfo.account,
+            password = rememberedInfo.password,
+            rememberPassword = true,
+            autoLoginEnabled = true
+        )
     }
 
     suspend fun login(
@@ -53,7 +137,7 @@ class AuthRepository(
                 tokenStore.saveRememberedLoginInfo(
                     account = account,
                     password = password,
-                    rememberPassword = rememberPassword,
+                    rememberPassword = rememberPassword || autoLoginEnabled,
                     autoLoginEnabled = autoLoginEnabled
                 )
 
@@ -66,6 +150,7 @@ class AuthRepository(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+
             ResultState.Error(
                 message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
             )
@@ -98,6 +183,7 @@ class AuthRepository(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+
             ResultState.Error(
                 message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
             )
@@ -107,16 +193,36 @@ class AuthRepository(
     suspend fun getCurrentUser(): ResultState<CurrentUserResponse> {
         return try {
             val response = authApi.getCurrentUser()
+
             if (response.code == 200 && response.data != null) {
                 ResultState.Success(response.data)
             } else {
+                if (response.code == 401 || response.code == 403) {
+                    tokenStore.clearLoginSession()
+                }
+
                 ResultState.Error(
                     message = response.message.ifBlank { "获取当前用户失败" },
                     code = response.code
                 )
             }
+        } catch (e: HttpException) {
+            if (e.code() == 401 || e.code() == 403) {
+                tokenStore.clearLoginSession()
+
+                ResultState.Error(
+                    message = "登录状态已过期，请重新登录",
+                    code = e.code()
+                )
+            } else {
+                ResultState.Error(
+                    message = "获取当前用户失败：HTTP ${e.code()}",
+                    code = e.code()
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
+
             ResultState.Error(
                 message = e.javaClass.simpleName + ": " + (e.message ?: "获取当前用户失败")
             )
@@ -139,6 +245,7 @@ class AuthRepository(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+
             ResultState.Error(
                 message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
             )
@@ -171,13 +278,20 @@ class AuthRepository(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+
             ResultState.Error(
                 message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
             )
         }
     }
 
+    /**
+     * 用户主动退出登录时，必须关闭自动登录。
+     *
+     * 否则用户点了退出登录，下次打开 App 又会用保存的账号密码自动登录回来。
+     */
     suspend fun logout() {
         tokenStore.clearLoginSession()
+        tokenStore.setAutoLoginEnabled(false)
     }
 }

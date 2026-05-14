@@ -28,6 +28,7 @@ class TokenStore(private val context: Context) {
         private val LAST_LOGIN_ACCOUNT_KEY = stringPreferencesKey("last_login_account")
         private val REMEMBERED_PASSWORD_KEY = stringPreferencesKey("remembered_password")
         private val REMEMBER_PASSWORD_ENABLED_KEY = booleanPreferencesKey("remember_password_enabled")
+
         private val AUTO_LOGIN_ENABLED_KEY = booleanPreferencesKey("auto_login_enabled")
     }
 
@@ -63,11 +64,27 @@ class TokenStore(private val context: Context) {
         return prefs[USERNAME_KEY]
     }
 
+    /**
+     * 只清除 token 会话，不清除账号密码和自动登录配置。
+     *
+     * 这样做是为了支持：
+     * token 过期后，仍然可以使用已经保存的账号密码重新登录获取新 token。
+     */
     suspend fun clearLoginSession() {
         context.authDataStore.edit { prefs ->
             prefs.remove(TOKEN_KEY)
             prefs.remove(USER_ID_KEY)
             prefs.remove(USERNAME_KEY)
+        }
+    }
+
+    /**
+     * 手动退出登录、自动登录失败时，可以单独关闭自动登录。
+     * 不清除账号密码，方便用户重新点击登录。
+     */
+    suspend fun setAutoLoginEnabled(enabled: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[AUTO_LOGIN_ENABLED_KEY] = enabled
         }
     }
 
@@ -83,12 +100,14 @@ class TokenStore(private val context: Context) {
         rememberPassword: Boolean,
         autoLoginEnabled: Boolean
     ) {
+        val finalRememberPassword = rememberPassword || autoLoginEnabled
+
         context.authDataStore.edit { prefs ->
             prefs[LAST_LOGIN_ACCOUNT_KEY] = account
-            prefs[REMEMBER_PASSWORD_ENABLED_KEY] = rememberPassword
+            prefs[REMEMBER_PASSWORD_ENABLED_KEY] = finalRememberPassword
             prefs[AUTO_LOGIN_ENABLED_KEY] = autoLoginEnabled
 
-            if (rememberPassword) {
+            if (finalRememberPassword) {
                 prefs[REMEMBERED_PASSWORD_KEY] = password
             } else {
                 prefs.remove(REMEMBERED_PASSWORD_KEY)
@@ -98,6 +117,7 @@ class TokenStore(private val context: Context) {
 
     suspend fun getRememberedLoginInfo(): RememberedLoginInfo {
         val prefs = context.authDataStore.data.first()
+
         return RememberedLoginInfo(
             account = prefs[LAST_LOGIN_ACCOUNT_KEY].orEmpty(),
             password = prefs[REMEMBERED_PASSWORD_KEY].orEmpty(),
