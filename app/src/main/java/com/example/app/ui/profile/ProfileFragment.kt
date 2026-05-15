@@ -1,6 +1,7 @@
 package com.example.app.ui.profile
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -26,6 +27,8 @@ import com.example.app.ui.settings.ServerConfigActivity
 class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private lateinit var progressBar: ProgressBar
+
+    private lateinit var tvAvatar: TextView
     private lateinit var tvNickname: TextView
     private lateinit var tvUsername: TextView
     private lateinit var tvPhone: TextView
@@ -130,6 +133,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
 
     private fun initViews(view: View) {
         progressBar = view.findViewById(R.id.progressBar)
+
+        tvAvatar = view.findViewById(R.id.tvAvatar)
         tvNickname = view.findViewById(R.id.tvNickname)
         tvUsername = view.findViewById(R.id.tvUsername)
         tvPhone = view.findViewById(R.id.tvPhone)
@@ -190,10 +195,16 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     }
 
     private fun refreshPinStatus() {
-        tvPinStatus.text = if (pinStore.hasPin()) {
-            "PIN 安全验证：已开启"
+        if (pinStore.hasPin()) {
+            tvPinStatus.text = "PIN验证：开启"
+            tvPinStatus.setBackgroundResource(R.drawable.bg_status_success)
+            tvPinStatus.setTextColor(Color.parseColor("#159A86"))
+            btnManagePin.text = "修改 PIN"
         } else {
-            "PIN 安全验证：未开启"
+            tvPinStatus.text = "PIN验证：关闭"
+            tvPinStatus.setBackgroundResource(R.drawable.bg_status_failed)
+            tvPinStatus.setTextColor(Color.parseColor("#F04438"))
+            btnManagePin.text = "设置 PIN"
         }
     }
 
@@ -201,18 +212,27 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
 
-            val nickname = state.nickname.ifBlank { "未设置昵称" }
+            val nickname = state.nickname
+                .ifBlank { state.username }
+                .ifBlank { "用户昵称" }
+
             val username = state.username.ifBlank { "-" }
             val phone = state.phone.ifBlank { "-" }
+
             val vehicleText = when {
                 state.selectedVehicleName.isNotBlank() && state.selectedVehicleId.isNotBlank() ->
                     "${state.selectedVehicleName} (${state.selectedVehicleId})"
+
                 state.selectedVehicleId.isNotBlank() ->
                     state.selectedVehicleId
+
                 else -> "未选择车辆"
             }
 
             tvNickname.text = nickname
+            tvAvatar.text = buildAvatarText(nickname)
+
+            // 下面三个 TextView 当前隐藏，只是保留数据，避免原逻辑丢失
             tvUsername.text = "用户名：$username"
             tvPhone.text = "手机号：$phone"
             tvSelectedVehicle.text = "当前车辆：$vehicleText"
@@ -234,5 +254,14 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                 startActivity(intent)
             }
         }
+    }
+
+    private fun buildAvatarText(nickname: String): String {
+        val text = nickname.trim()
+        if (text.isBlank()) {
+            return "我"
+        }
+
+        return text.first().toString()
     }
 }
