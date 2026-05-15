@@ -153,8 +153,12 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             requestStatusQueryCommand()
         }
 
+        /*
+         * 控制界面刷新按钮现在也发送 STATUS_QUERY。
+         * 这样每次点击刷新都会生成一条“状态查询”操作历史。
+         */
         ivRefreshVehicleState.setOnClickListener {
-            viewModel.refreshSelectedVehicleState()
+            requestStatusQueryCommand()
         }
     }
 
@@ -194,11 +198,10 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             return
         }
 
-        if (state.onlineStatus != 1) {
-            Toast.makeText(requireContext(), "车辆离线，不能向车辆发送状态查询命令", Toast.LENGTH_SHORT).show()
-            return
-        }
-
+        /*
+         * 状态查询不再拦截离线车辆。
+         * 离线时后端会生成 TIMEOUT 记录，历史页面显示“超时”。
+         */
         viewModel.sendCommand("STATUS_QUERY")
     }
 
@@ -272,7 +275,11 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         applyCommandButtonState(btnWindowOpen, canOperate && !windowOpen, isOpenButton = true)
         applyCommandButtonState(btnWindowClose, canOperate && !windowClosed, isOpenButton = false)
 
-        applyCommandButtonState(btnStatusQuery, canOperate, isOpenButton = true)
+        /*
+         * 隐藏按钮 btnStatusQuery 也保持可用；
+         * 真正的状态查询由右上角刷新图标触发。
+         */
+        btnStatusQuery.isEnabled = hasVehicle && !busy
 
         btnLockOff.text = "开"
         btnLockOn.text = "关"
@@ -392,21 +399,13 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
                 status == "关"
     }
 
-    private fun onlineText(onlineStatus: Int?): String {
-        return when (onlineStatus) {
-            1 -> "在线"
-            0 -> "离线"
-            else -> "-"
-        }
-    }
-
     private fun buildControlHint(state: ControlUiState): String {
         return when {
             state.selectedVehicleId.isNullOrBlank() -> "请先在主页选择当前车辆"
             state.isLoading -> "正在同步车辆状态"
             state.pendingCommandType != null -> "正在执行：${commandDisplayName(state.pendingCommandType)}"
             state.isPolling -> "正在等待车辆返回结果"
-            state.onlineStatus == 0 -> "当前离线，暂不可使用控制功能"
+            state.onlineStatus == 0 -> "当前离线，控制功能不可用"
             else -> "当前在线，可以远程控制"
         }
     }
@@ -419,11 +418,12 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             return "最近操作：暂无"
         }
 
-        val resultText = when {
-            commandResult.equals("SUCCESS", true) -> "成功"
-            commandResult.equals("FAILED", true) -> "失败"
-            commandResult.equals("PENDING", true) -> "执行中"
-            else -> commandResult
+        val resultText = if (commandResult.equals("SUCCESS", true)) {
+            "成功"
+        } else if (commandResult.equals("PENDING", true)) {
+            "执行中"
+        } else {
+            "超时"
         }
 
         return "最近操作：${commandDisplayName(commandType)} · $resultText"

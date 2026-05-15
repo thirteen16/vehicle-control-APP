@@ -10,11 +10,13 @@ import com.example.app.data.local.TokenStore
 import com.example.app.data.model.entity.Vehicle
 import com.example.app.data.model.response.VehicleStateResponse
 import com.example.app.data.model.response.WsVehicleStateData
+import com.example.app.data.repository.CommandRepository
 import com.example.app.data.repository.VehicleRepository
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val vehicleRepository: VehicleRepository,
+    private val commandRepository: CommandRepository,
     private val tokenStore: TokenStore
 ) : ViewModel() {
 
@@ -73,20 +75,7 @@ class HomeViewModel(
                                 isRefreshingCurrent = false,
                                 vehicles = vehicles,
                                 selectedVehicleId = selectedVehicle.vehicleId,
-                                selectedState = VehicleStateResponse(
-                                    vehicleId = selectedVehicle.vehicleId,
-                                    name = selectedVehicle.name.ifBlank { selectedVehicle.vehicleId },
-                                    brand = selectedVehicle.brand,
-                                    model = selectedVehicle.model,
-                                    onlineStatus = selectedVehicle.onlineStatus,
-                                    lockStatus = selectedVehicle.lockStatus,
-                                    engineStatus = selectedVehicle.engineStatus,
-                                    hvacStatus = selectedVehicle.hvacStatus,
-                                    windowStatus = selectedVehicle.windowStatus,
-                                    mileage = selectedVehicle.mileage,
-                                    fuelLevel = selectedVehicle.fuelLevel,
-                                    updatedTime = selectedVehicle.updatedTime
-                                ),
+                                selectedState = fallbackStateFromVehicle(selectedVehicle),
                                 errorMessage = stateResult.message
                             )
                         }
@@ -122,20 +111,7 @@ class HomeViewModel(
 
             _uiState.value = current.copy(
                 selectedVehicleId = vehicleId,
-                selectedState = VehicleStateResponse(
-                    vehicleId = targetVehicle.vehicleId,
-                    name = targetVehicle.name.ifBlank { targetVehicle.vehicleId },
-                    brand = targetVehicle.brand,
-                    model = targetVehicle.model,
-                    onlineStatus = targetVehicle.onlineStatus,
-                    lockStatus = targetVehicle.lockStatus,
-                    engineStatus = targetVehicle.engineStatus,
-                    hvacStatus = targetVehicle.hvacStatus,
-                    windowStatus = targetVehicle.windowStatus,
-                    mileage = targetVehicle.mileage,
-                    fuelLevel = targetVehicle.fuelLevel,
-                    updatedTime = targetVehicle.updatedTime
-                ),
+                selectedState = fallbackStateFromVehicle(targetVehicle),
                 isRefreshingCurrent = true,
                 errorMessage = null
             )
@@ -154,20 +130,7 @@ class HomeViewModel(
                     val latest = _uiState.value ?: current
                     _uiState.value = latest.copy(
                         isRefreshingCurrent = false,
-                        selectedState = VehicleStateResponse(
-                            vehicleId = targetVehicle.vehicleId,
-                            name = targetVehicle.name.ifBlank { targetVehicle.vehicleId },
-                            brand = targetVehicle.brand,
-                            model = targetVehicle.model,
-                            onlineStatus = targetVehicle.onlineStatus,
-                            lockStatus = targetVehicle.lockStatus,
-                            engineStatus = targetVehicle.engineStatus,
-                            hvacStatus = targetVehicle.hvacStatus,
-                            windowStatus = targetVehicle.windowStatus,
-                            mileage = targetVehicle.mileage,
-                            fuelLevel = targetVehicle.fuelLevel,
-                            updatedTime = targetVehicle.updatedTime
-                        ),
+                        selectedState = fallbackStateFromVehicle(targetVehicle),
                         errorMessage = result.message
                     )
                 }
@@ -187,33 +150,86 @@ class HomeViewModel(
                 errorMessage = null
             )
 
-            when (val result = vehicleRepository.getVehicleState(selectedVehicleId)) {
-                is ResultState.Success -> {
-                    val latest = _uiState.value ?: current
-                    val mergedVehicles = mergeVehicleListWithSelectedState(
-                        latest.vehicles,
-                        selectedVehicleId,
-                        result.data
-                    )
+            refreshSelectedVehicleStateInternal(selectedVehicleId, current)
+        }
+    }
 
-                    _uiState.value = latest.copy(
-                        isRefreshingCurrent = false,
-                        vehicles = mergedVehicles,
-                        selectedState = result.data,
-                        errorMessage = null
-                    )
+    /*
+     * 首页刷新按钮专用：
+     * 先发送 STATUS_QUERY，让后端生成“状态查询”操作历史；
+     * 然后再读取一次车辆状态，用于刷新首页展示。
+     */
+    fun sendStatusQueryAndRefresh() {
+        val current = _uiState.value ?: return
+        val selectedVehicleId = current.selectedVehicleId
+
+        if (selectedVehicleId.isNullOrBlank()) {
+            _uiState.value = current.copy(
+                errorMessage = "当前没有已绑定车辆"
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = current.copy(
+                isRefreshingCurrent = true,
+                errorMessage = null
+            )
+
+            var commandError: String? = null
+
+            when (val commandResult = commandRepository.submitCommand(selectedVehicleId, "STATUS_QUERY")) {
+                is ResultState.Success -> {
+                    commandError = null
                 }
 
                 is ResultState.Error -> {
-                    val latest = _uiState.value ?: current
-                    _uiState.value = latest.copy(
-                        isRefreshingCurrent = false,
-                        errorMessage = result.message
-                    )
+                    commandError = commandResult.message
                 }
 
                 ResultState.Loading -> Unit
             }
+
+            val latest = _uiState.value ?: current
+            refreshSelectedVehicleStateInternal(
+                selectedVehicleId = selectedVehicleId,
+                baseState = latest,
+                extraErrorMessage = commandError
+            )
+        }
+    }
+
+    private suspend fun refreshSelectedVehicleStateInternal(
+        selectedVehicleId: String,
+        baseState: HomeUiState,
+        extraErrorMessage: String? = null
+    ) {
+        when (val result = vehicleRepository.getVehicleState(selectedVehicleId)) {
+            is ResultState.Success -> {
+                val latest = _uiState.value ?: baseState
+                val mergedVehicles = mergeVehicleListWithSelectedState(
+                    latest.vehicles,
+                    selectedVehicleId,
+                    result.data
+                )
+
+                _uiState.value = latest.copy(
+                    isRefreshingCurrent = false,
+                    vehicles = mergedVehicles,
+                    selectedState = result.data,
+                    errorMessage = extraErrorMessage
+                )
+            }
+
+            is ResultState.Error -> {
+                val latest = _uiState.value ?: baseState
+                _uiState.value = latest.copy(
+                    isRefreshingCurrent = false,
+                    errorMessage = extraErrorMessage ?: result.message
+                )
+            }
+
+            ResultState.Loading -> Unit
         }
     }
 
@@ -292,14 +308,32 @@ class HomeViewModel(
         }
     }
 
+    private fun fallbackStateFromVehicle(vehicle: Vehicle): VehicleStateResponse {
+        return VehicleStateResponse(
+            vehicleId = vehicle.vehicleId,
+            name = vehicle.name.ifBlank { vehicle.vehicleId },
+            brand = vehicle.brand,
+            model = vehicle.model,
+            onlineStatus = vehicle.onlineStatus,
+            lockStatus = vehicle.lockStatus,
+            engineStatus = vehicle.engineStatus,
+            hvacStatus = vehicle.hvacStatus,
+            windowStatus = vehicle.windowStatus,
+            mileage = vehicle.mileage,
+            fuelLevel = vehicle.fuelLevel,
+            updatedTime = vehicle.updatedTime
+        )
+    }
+
     class Factory(
         private val vehicleRepository: VehicleRepository,
+        private val commandRepository: CommandRepository,
         private val tokenStore: TokenStore
     ) : ViewModelProvider.Factory {
 
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return HomeViewModel(vehicleRepository, tokenStore) as T
+            return HomeViewModel(vehicleRepository, commandRepository, tokenStore) as T
         }
     }
 }

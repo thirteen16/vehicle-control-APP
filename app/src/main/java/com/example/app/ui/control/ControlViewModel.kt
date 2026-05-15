@@ -50,7 +50,7 @@ class ControlViewModel(
                     hvacStatus = null,
                     windowStatus = null,
                     latestVehicleStateText = null,
-                    errorMessage = "请先在车辆页选择一辆车"
+                    errorMessage = "请先在主页选择一辆车"
                 )
                 return@launch
             }
@@ -177,18 +177,18 @@ class ControlViewModel(
 
         if (vehicleId.isNullOrBlank()) {
             _uiState.value = currentState.copy(
-                errorMessage = "请先在车辆页选择一辆车"
+                errorMessage = "请先在主页选择一辆车"
             )
             return
         }
 
         /*
-         * 新增前端二次保护：
-         * 即使按钮层漏掉了判断，这里也不允许离线车辆发送远程控制命令。
-         *
-         * 后端仍然有最终校验，所以这里是用户体验层面的提前拦截。
+         * 普通控制命令仍然要求车辆在线。
+         * STATUS_QUERY 是状态查询命令，允许离线时发送，
+         * 这样点击刷新也能生成一条“状态查询”历史记录。
          */
-        if (currentState.onlineStatus != 1) {
+        val isStatusQuery = type == "STATUS_QUERY"
+        if (!isStatusQuery && currentState.onlineStatus != 1) {
             _uiState.value = currentState.copy(
                 isLoading = false,
                 isPolling = false,
@@ -224,11 +224,15 @@ class ControlViewModel(
                         lastCommandResult = latestResult,
                         lastRequestTime = data.requestTime ?: data.createdTime,
                         lastResponseTime = data.responseTime,
-                        infoMessage = "命令已发送"
+                        infoMessage = if (isStatusQuery) "状态查询已记录" else "命令已发送"
                     )
 
                     if (!commandId.isNullOrBlank()) {
                         pollCommandResult(commandId)
+                    }
+
+                    if (isStatusQuery) {
+                        refreshSelectedVehicleState()
                     }
                 }
 

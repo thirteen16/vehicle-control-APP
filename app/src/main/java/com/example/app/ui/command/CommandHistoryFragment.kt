@@ -1,13 +1,17 @@
 package com.example.app.ui.command
 
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
@@ -16,6 +20,10 @@ import com.example.app.data.local.SelectedVehicleStore
 import com.example.app.data.model.response.CommandHistoryItemResponse
 import com.example.app.data.repository.CommandRepository
 import com.example.app.di.NetworkModule
+import java.text.ParsePosition
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
 
@@ -26,14 +34,28 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
     private lateinit var tvTotalCount: TextView
     private lateinit var historyContainer: LinearLayout
 
-    private lateinit var btnRefreshCurrent: Button
-    private lateinit var btnLoadAll: Button
-    private lateinit var btnFilterAll: Button
-    private lateinit var btnFilterSuccess: Button
-    private lateinit var btnFilterFailed: Button
-    private lateinit var btnFilterPending: Button
+    private lateinit var spTimeFilter: Spinner
+    private lateinit var spResultFilter: Spinner
 
     private lateinit var viewModel: CommandHistoryViewModel
+
+    private val expandedMonthKeys = mutableSetOf<String>()
+    private val initializedMonthKeys = mutableSetOf<String>()
+    private var ignoreSpinnerCallback = false
+
+    private val timeFilterOptions = listOf(
+        "全部" to CommandTimeFilter.ALL_TIME,
+        "近一天" to CommandTimeFilter.LAST_DAY,
+        "近一周" to CommandTimeFilter.LAST_WEEK,
+        "近半年" to CommandTimeFilter.HALF_YEAR,
+        "近一年" to CommandTimeFilter.ONE_YEAR
+    )
+
+    private val resultFilterOptions = listOf(
+        "全部" to CommandResultFilter.ALL,
+        "成功" to CommandResultFilter.SUCCESS,
+        "超时" to CommandResultFilter.TIMEOUT
+    )
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -54,7 +76,7 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
         )[CommandHistoryViewModel::class.java]
 
         initViews(view)
-        initListeners()
+        setupSpinners()
         observeUiState()
     }
 
@@ -66,37 +88,59 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
         tvTotalCount = view.findViewById(R.id.tvTotalCount)
         historyContainer = view.findViewById(R.id.historyContainer)
 
-        btnRefreshCurrent = view.findViewById(R.id.btnRefreshCurrent)
-        btnLoadAll = view.findViewById(R.id.btnLoadAll)
-        btnFilterAll = view.findViewById(R.id.btnFilterAll)
-        btnFilterSuccess = view.findViewById(R.id.btnFilterSuccess)
-        btnFilterFailed = view.findViewById(R.id.btnFilterFailed)
-        btnFilterPending = view.findViewById(R.id.btnFilterPending)
+        spTimeFilter = view.findViewById(R.id.spTimeFilter)
+        spResultFilter = view.findViewById(R.id.spResultFilter)
     }
 
-    private fun initListeners() {
-        btnRefreshCurrent.setOnClickListener {
-            viewModel.loadCurrentVehicleHistory()
+    private fun setupSpinners() {
+        val timeAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            timeFilterOptions.map { it.first }
+        ).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
 
-        btnLoadAll.setOnClickListener {
-            viewModel.loadAllHistory()
+        val resultAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            resultFilterOptions.map { it.first }
+        ).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
 
-        btnFilterAll.setOnClickListener {
-            viewModel.setResultFilter(CommandResultFilter.ALL)
+        spTimeFilter.adapter = timeAdapter
+        spResultFilter.adapter = resultAdapter
+
+        spTimeFilter.setSelection(0, false)
+        spResultFilter.setSelection(0, false)
+
+        spTimeFilter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                if (ignoreSpinnerCallback) return
+                viewModel.setTimeFilter(timeFilterOptions[position].second)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        btnFilterSuccess.setOnClickListener {
-            viewModel.setResultFilter(CommandResultFilter.SUCCESS)
-        }
+        spResultFilter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                if (ignoreSpinnerCallback) return
+                viewModel.setResultFilter(resultFilterOptions[position].second)
+            }
 
-        btnFilterFailed.setOnClickListener {
-            viewModel.setResultFilter(CommandResultFilter.FAILED)
-        }
-
-        btnFilterPending.setOnClickListener {
-            viewModel.setResultFilter(CommandResultFilter.PENDING)
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 
@@ -105,18 +149,38 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
             progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
 
             tvCurrentFilter.text = if (state.isAllHistory) {
-                "车辆范围：全部车辆"
+                "全部车辆"
             } else {
-                "车辆范围：${state.selectedVehicleId ?: "未选择车辆"}"
+                state.selectedVehicleId ?: "未选择车辆"
             }
 
-            tvResultFilter.text = "状态筛选：${displayFilterText(state.resultFilter)}"
-            tvTotalCount.text = "当前显示 ${state.items.size} 条 · 已加载 ${state.totalLoadedCount} 条"
+            tvResultFilter.text = displayFilterText(state.resultFilter)
+            tvTotalCount.text = "当前共 ${state.items.size} 条结果"
 
-            renderFilterButtons(state.resultFilter)
+            syncSpinnerSelection(state)
             renderStateBanner(state)
-            renderHistoryList(state.items)
+            renderHistoryGroups(state.items)
         }
+    }
+
+    private fun syncSpinnerSelection(state: CommandHistoryUiState) {
+        ignoreSpinnerCallback = true
+
+        val timeIndex = timeFilterOptions.indexOfFirst { it.second == state.timeFilter }
+            .takeIf { it >= 0 } ?: 0
+
+        val resultIndex = resultFilterOptions.indexOfFirst { it.second == state.resultFilter }
+            .takeIf { it >= 0 } ?: 0
+
+        if (spTimeFilter.selectedItemPosition != timeIndex) {
+            spTimeFilter.setSelection(timeIndex, false)
+        }
+
+        if (spResultFilter.selectedItemPosition != resultIndex) {
+            spResultFilter.setSelection(resultIndex, false)
+        }
+
+        ignoreSpinnerCallback = false
     }
 
     private fun renderStateBanner(state: CommandHistoryUiState) {
@@ -129,10 +193,7 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
 
             state.items.isEmpty() -> {
                 tvStateBanner.visibility = View.VISIBLE
-                tvStateBanner.text = UiStateTextResolver.historyEmptyMessage(
-                    isAllHistory = state.isAllHistory,
-                    resultFilterText = displayFilterText(state.resultFilter)
-                )
+                tvStateBanner.text = "暂无历史记录"
                 tvStateBanner.setBackgroundResource(R.drawable.bg_notice_empty)
             }
 
@@ -148,98 +209,312 @@ class CommandHistoryFragment : Fragment(R.layout.fragment_command_history) {
         }
     }
 
-    private fun renderFilterButtons(filter: CommandResultFilter) {
-        renderSingleFilterButton(btnFilterAll, filter == CommandResultFilter.ALL)
-        renderSingleFilterButton(btnFilterSuccess, filter == CommandResultFilter.SUCCESS)
-        renderSingleFilterButton(btnFilterFailed, filter == CommandResultFilter.FAILED)
-        renderSingleFilterButton(btnFilterPending, filter == CommandResultFilter.PENDING)
-    }
-
-    private fun renderSingleFilterButton(button: Button, selected: Boolean) {
-        button.isEnabled = !selected
-        button.alpha = if (selected) 1f else 0.7f
-    }
-
-    private fun renderHistoryList(items: List<CommandHistoryItemResponse>) {
+    private fun renderHistoryGroups(items: List<CommandHistoryItemResponse>) {
         historyContainer.removeAllViews()
 
-        if (items.isEmpty()) return
+        if (items.isEmpty()) {
+            return
+        }
 
-        val inflater = LayoutInflater.from(requireContext())
+        val sortedItems = items.sortedByDescending {
+            parseDisplayDate(historyTimeText(it))?.time ?: Long.MIN_VALUE
+        }
 
-        items.forEach { item ->
-            val itemView = inflater.inflate(R.layout.item_command_history, historyContainer, false)
+        val groupedItems = sortedItems.groupBy { monthKey(historyTimeText(it)) }
+        val currentMonthKeys = groupedItems.keys.toSet()
 
-            val root = itemView.findViewById<View>(R.id.rootHistoryItem)
-            val tvType = itemView.findViewById<TextView>(R.id.tvType)
-            val tvResultBadge = itemView.findViewById<TextView>(R.id.tvResultBadge)
-            val tvVehicleId = itemView.findViewById<TextView>(R.id.tvVehicleId)
-            val tvTime = itemView.findViewById<TextView>(R.id.tvTime)
-            val tvDetailHint = itemView.findViewById<TextView>(R.id.tvDetailHint)
+        initializedMonthKeys.retainAll(currentMonthKeys)
+        expandedMonthKeys.retainAll(currentMonthKeys)
 
-            tvType.text = commandDisplayName(item.type)
-            tvResultBadge.text = formatResult(item.result)
-            tvVehicleId.text = "车辆：${item.vehicleId ?: "-"}"
-            tvTime.text = buildTimeText(item)
-            tvDetailHint.text = "点击查看完整操作详情"
+        currentMonthKeys.forEach { month ->
+            if (!initializedMonthKeys.contains(month)) {
+                initializedMonthKeys.add(month)
+                expandedMonthKeys.add(month)
+            }
+        }
 
-            applyResultBadgeStyle(tvResultBadge, item.result)
+        groupedItems.forEach { entry ->
+            val month = entry.key
+            val monthItems = entry.value
+            val isExpanded = expandedMonthKeys.contains(month)
 
-            root.setOnClickListener {
-                CommandResultDialog.newInstance(item)
-                    .show(childFragmentManager, "command_result_dialog")
+            val groupHeader = createMonthHeader(
+                month = month,
+                count = monthItems.size,
+                expanded = isExpanded
+            )
+
+            groupHeader.setOnClickListener {
+                if (expandedMonthKeys.contains(month)) {
+                    expandedMonthKeys.remove(month)
+                } else {
+                    expandedMonthKeys.add(month)
+                }
+
+                renderHistoryGroups(items)
             }
 
-            historyContainer.addView(itemView)
+            historyContainer.addView(groupHeader)
+
+            if (isExpanded) {
+                monthItems.forEach { item ->
+                    historyContainer.addView(createHistoryItemView(item))
+                }
+            }
         }
     }
 
-    private fun buildTimeText(item: CommandHistoryItemResponse): String {
-        val requestTime = item.requestTime ?: "-"
-        val responseTime = item.responseTime ?: "-"
-        return "发起时间：$requestTime\n完成时间：$responseTime"
+    private fun createMonthHeader(
+        month: String,
+        count: Int,
+        expanded: Boolean
+    ): View {
+        val context = requireContext()
+
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(12), dp(10), dp(12))
+            setBackgroundResource(R.drawable.bg_car_card)
+            isClickable = true
+            isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(4)
+                bottomMargin = dp(8)
+            }
+        }
+
+        val countText = TextView(context).apply {
+            text = "共 $count 条记录"
+            textSize = 15f
+            setTextColor(Color.parseColor("#7B8794"))
+            setTypeface(null, Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        }
+
+        val monthText = TextView(context).apply {
+            text = month
+            textSize = 16f
+            setTextColor(Color.parseColor("#1F2933"))
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.END
+        }
+
+        val arrowButton = TextView(context).apply {
+            text = ">"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            rotation = if (expanded) 90f else 0f
+            setTextColor(Color.parseColor("#1F2933"))
+            setTypeface(null, Typeface.BOLD)
+            setBackgroundResource(R.drawable.bg_car_soft_button)
+            layoutParams = LinearLayout.LayoutParams(
+                dp(38),
+                dp(34)
+            ).apply {
+                leftMargin = dp(10)
+            }
+        }
+
+        header.addView(countText)
+        header.addView(monthText)
+        header.addView(arrowButton)
+
+        return header
+    }
+
+    private fun createHistoryItemView(item: CommandHistoryItemResponse): View {
+        val inflater = LayoutInflater.from(requireContext())
+        val itemView = inflater.inflate(R.layout.item_command_history, historyContainer, false)
+
+        val root = itemView.findViewById<View>(R.id.rootHistoryItem)
+        val tvType = itemView.findViewById<TextView>(R.id.tvType)
+        val tvResultBadge = itemView.findViewById<TextView>(R.id.tvResultBadge)
+        val tvVehicleId = itemView.findViewById<TextView>(R.id.tvVehicleId)
+        val tvTime = itemView.findViewById<TextView>(R.id.tvTime)
+        val tvDetailHint = itemView.findViewById<TextView>(R.id.tvDetailHint)
+
+        val rawTime = historyTimeText(item)
+
+        tvType.text = commandDisplayName(item.type)
+        tvResultBadge.text = formatResult(item.result)
+        tvVehicleId.text = item.vehicleId ?: "-"
+        tvTime.text = formatDayMinute(rawTime)
+        tvDetailHint.text = ""
+
+        applyResultBadgeStyle(tvResultBadge, item.result)
+
+        root.setOnClickListener {
+            CommandResultDialog.newInstance(item)
+                .show(childFragmentManager, "command_result_dialog")
+        }
+
+        return itemView
+    }
+
+    private fun historyTimeText(item: CommandHistoryItemResponse): String? {
+        return listOf(
+            item.requestTime,
+            item.createdTime,
+            item.responseTime,
+            item.updatedTime
+        ).firstOrNull { !it.isNullOrBlank() }
+    }
+
+    private fun monthKey(raw: String?): String {
+        val directMonth = extractMonth(raw)
+        if (!directMonth.isNullOrBlank()) {
+            return directMonth
+        }
+
+        val date = parseDisplayDate(raw)
+        if (date != null) {
+            return SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(date)
+        }
+
+        return "未知时间"
+    }
+
+    private fun formatDayMinute(raw: String?): String {
+        val directTime = extractMonthDayMinute(raw)
+        if (!directTime.isNullOrBlank()) {
+            return directTime
+        }
+
+        val date = parseDisplayDate(raw)
+        if (date != null) {
+            return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(date)
+        }
+
+        return raw ?: "-"
+    }
+
+    private fun extractMonth(raw: String?): String? {
+        if (raw.isNullOrBlank()) {
+            return null
+        }
+
+        val text = raw.trim()
+        val regex = Regex("""(\d{4})[-/](\d{1,2})""")
+        val match = regex.find(text) ?: return null
+
+        val year = match.groupValues[1]
+        val month = match.groupValues[2].padStart(2, '0')
+
+        return "$year-$month"
+    }
+
+    private fun extractMonthDayMinute(raw: String?): String? {
+        if (raw.isNullOrBlank()) {
+            return null
+        }
+
+        val text = raw.trim()
+
+        val regex = Regex(
+            """\d{4}[-/](\d{1,2})[-/](\d{1,2})(?:[T\s]+)(\d{1,2}):(\d{1,2})"""
+        )
+
+        val match = regex.find(text) ?: return null
+
+        val month = match.groupValues[1].padStart(2, '0')
+        val day = match.groupValues[2].padStart(2, '0')
+        val hour = match.groupValues[3].padStart(2, '0')
+        val minute = match.groupValues[4].padStart(2, '0')
+
+        return "$month-$day $hour:$minute"
+    }
+
+    private fun parseDisplayDate(raw: String?): Date? {
+        if (raw.isNullOrBlank()) {
+            return null
+        }
+
+        val text = raw.trim()
+
+        val patterns = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd HH:mm",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm",
+            "yyyy-MM-dd",
+            "yyyy/MM/dd"
+        )
+
+        for (pattern in patterns) {
+            try {
+                val formatter = SimpleDateFormat(pattern, Locale.getDefault()).apply {
+                    isLenient = false
+                }
+
+                val position = ParsePosition(0)
+                val date = formatter.parse(text, position)
+
+                if (date != null && position.index == text.length) {
+                    return date
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        return null
     }
 
     private fun commandDisplayName(type: String?): String {
         return when (type) {
-            "LOCK_ON" -> "上锁"
-            "LOCK_OFF" -> "解锁"
+            "LOCK_ON" -> "关闭车锁"
+            "LOCK_OFF" -> "打开车锁"
             "HVAC_ON" -> "开启空调"
             "HVAC_OFF" -> "关闭空调"
             "WINDOW_OPEN" -> "打开车窗"
             "WINDOW_CLOSE" -> "关闭车窗"
             "ENGINE_ON" -> "启动发动机"
             "ENGINE_OFF" -> "关闭发动机"
-            "STATUS_QUERY" -> "同步车辆状态"
+            "STATUS_QUERY" -> "状态查询"
             else -> type ?: "-"
         }
     }
 
     private fun formatResult(result: String?): String {
-        return when {
-            result.equals("SUCCESS", true) -> "成功"
-            result.equals("FAILED", true) -> "失败"
-            result.equals("PENDING", true) -> "进行中"
-            else -> result ?: "-"
+        return if (result.equals("SUCCESS", ignoreCase = true)) {
+            "成功"
+        } else {
+            "超时"
         }
     }
 
     private fun applyResultBadgeStyle(textView: TextView, result: String?) {
-        val bgRes = when {
-            result.equals("SUCCESS", ignoreCase = true) -> R.drawable.bg_status_success
-            result.equals("FAILED", ignoreCase = true) -> R.drawable.bg_status_failed
-            result.equals("PENDING", ignoreCase = true) -> R.drawable.bg_status_pending
-            else -> R.drawable.bg_status_pending
+        if (result.equals("SUCCESS", ignoreCase = true)) {
+            textView.setBackgroundResource(R.drawable.bg_status_success)
+            textView.setTextColor(Color.parseColor("#159A86"))
+        } else {
+            textView.setBackgroundResource(R.drawable.bg_status_failed)
+            textView.setTextColor(Color.parseColor("#F04438"))
         }
-        textView.background = ContextCompat.getDrawable(requireContext(), bgRes)
     }
 
     private fun displayFilterText(filter: CommandResultFilter): String {
         return when (filter) {
             CommandResultFilter.ALL -> "全部"
             CommandResultFilter.SUCCESS -> "成功"
-            CommandResultFilter.FAILED -> "失败"
-            CommandResultFilter.PENDING -> "进行中"
+            CommandResultFilter.TIMEOUT -> "超时"
         }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density + 0.5f).toInt()
     }
 }

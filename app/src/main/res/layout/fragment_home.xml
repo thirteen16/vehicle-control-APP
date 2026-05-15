@@ -36,7 +36,6 @@
             android:layout_marginBottom="12dp"
             android:visibility="gone" />
 
-        <!-- 保留这个 id，避免原逻辑出问题；这里隐藏即可 -->
         <TextView
             android:id="@+id/tvVehicleCount"
             android:layout_width="wrap_content"
@@ -44,7 +43,6 @@
             android:text="0"
             android:visibility="gone" />
 
-        <!-- 当前车辆卡片 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -198,7 +196,6 @@
                     android:tint="@color/car_primary_dark" />
             </LinearLayout>
 
-            <!-- 这些 id 保留，隐藏，不占页面 -->
             <TextView
                 android:id="@+id/tvCurrentVehicleId"
                 android:layout_width="wrap_content"
@@ -240,20 +237,22 @@
                 android:layout_height="wrap_content"
                 android:text="-"
                 android:visibility="gone" />
+
         </LinearLayout>
 
-        <!-- 其他绑定车辆头部 -->
         <LinearLayout
             android:id="@+id/layoutOtherVehicleHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:background="@drawable/bg_car_card"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="16dp"
             android:paddingTop="14dp"
-            android:paddingEnd="16dp"
+            android:paddingEnd="10dp"
             android:paddingBottom="14dp">
 
             <TextView
@@ -276,12 +275,17 @@
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
-            <ImageView
+            <TextView
                 android:id="@+id/ivToggleOtherVehicles"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/arrow_down_float"
-                android:tint="@color/car_text_secondary" />
+                android:layout_width="38dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_car_soft_button"
+                android:gravity="center"
+                android:text=">"
+                android:textColor="@color/car_text_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
         </LinearLayout>
 
         <TextView

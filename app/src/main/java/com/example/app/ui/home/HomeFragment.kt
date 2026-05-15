@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
 import com.example.app.common.UiStateTextResolver
 import com.example.app.data.local.SelectedVehicleStore
+import com.example.app.data.repository.CommandRepository
 import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
 import com.example.app.ui.main.AppRealtimeViewModel
@@ -48,7 +49,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private lateinit var layoutOtherVehicleHeader: LinearLayout
     private lateinit var tvOtherVehicleTitle: TextView
     private lateinit var tvOtherVehicleCount: TextView
-    private lateinit var ivToggleOtherVehicles: ImageView
+    private lateinit var tvToggleOtherVehiclesArrow: TextView
     private lateinit var tvEmptyOtherVehicles: TextView
     private lateinit var otherVehicleContainer: LinearLayout
 
@@ -69,13 +70,17 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val loggingInterceptor = NetworkModule.provideLoggingInterceptor()
         val okHttpClient = NetworkModule.provideOkHttpClient(authInterceptor, loggingInterceptor)
         val retrofit = NetworkModule.provideRetrofit(okHttpClient)
+
         val vehicleApi = NetworkModule.provideVehicleApi(retrofit)
+        val commandApi = NetworkModule.provideCommandApi(retrofit)
         val selectedVehicleStore = SelectedVehicleStore(appContext)
+
         val vehicleRepository = VehicleRepository(vehicleApi, selectedVehicleStore)
+        val commandRepository = CommandRepository(commandApi, selectedVehicleStore)
 
         viewModel = ViewModelProvider(
             this,
-            HomeViewModel.Factory(vehicleRepository, tokenStore)
+            HomeViewModel.Factory(vehicleRepository, commandRepository, tokenStore)
         )[HomeViewModel::class.java]
 
         realtimeViewModel = ViewModelProvider(requireActivity())[AppRealtimeViewModel::class.java]
@@ -110,14 +115,14 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         layoutOtherVehicleHeader = view.findViewById(R.id.layoutOtherVehicleHeader)
         tvOtherVehicleTitle = view.findViewById(R.id.tvOtherVehicleTitle)
         tvOtherVehicleCount = view.findViewById(R.id.tvOtherVehicleCount)
-        ivToggleOtherVehicles = view.findViewById(R.id.ivToggleOtherVehicles)
+        tvToggleOtherVehiclesArrow = view.findViewById(R.id.ivToggleOtherVehicles)
         tvEmptyOtherVehicles = view.findViewById(R.id.tvEmptyOtherVehicles)
         otherVehicleContainer = view.findViewById(R.id.otherVehicleContainer)
     }
 
     private fun initListeners() {
         ivRefreshCurrent.setOnClickListener {
-            viewModel.refreshSelectedVehicleState()
+            viewModel.sendStatusQueryAndRefresh()
         }
 
         ivCurrentLocation.setOnClickListener {
@@ -138,7 +143,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             toggleOtherVehicles()
         }
 
-        ivToggleOtherVehicles.setOnClickListener {
+        tvToggleOtherVehiclesArrow.setOnClickListener {
             toggleOtherVehicles()
         }
     }
@@ -185,8 +190,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         when {
             !state.errorMessage.isNullOrBlank() -> {
                 tvStateBanner.visibility = View.VISIBLE
-                tvStateBanner.text = "加载失败：${UiStateTextResolver.resolveError(state.errorMessage)}"
-                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_error)
+                tvStateBanner.text = "提示：${UiStateTextResolver.resolveError(state.errorMessage)}"
+                tvStateBanner.setBackgroundResource(R.drawable.bg_notice_info)
             }
 
             state.vehicles.isEmpty() -> {
@@ -320,16 +325,11 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 else -> "-"
             }
 
-            val fuelText = "${vehicle.fuelLevel ?: "-"}%"
-            val mileageText = "${vehicle.mileage ?: "-"} km"
-
             tvName.text = displayName
             tvBrandModel.text = brandModelText
             tvVehicleOnlineStatus.text = onlineText
-            tvVehicleFuelLevel.text = fuelText
-            tvMileage.text = mileageText
-
-            // 这两个 id 保留，但页面不显示
+            tvVehicleFuelLevel.text = "${vehicle.fuelLevel ?: "-"}%"
+            tvMileage.text = "${vehicle.mileage ?: "-"} km"
             tvVehicleId.text = vehicle.vehicleId
             tvHint.text = ""
 
@@ -358,25 +358,26 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun updateOtherVehicleSectionVisibility(otherCount: Int) {
         tvOtherVehicleCount.text = otherCount.toString()
+        tvToggleOtherVehiclesArrow.text = ">"
 
         if (otherCount == 0) {
             tvEmptyOtherVehicles.visibility = View.VISIBLE
             otherVehicleContainer.visibility = View.GONE
-            ivToggleOtherVehicles.setImageResource(android.R.drawable.arrow_down_float)
-            ivToggleOtherVehicles.alpha = 0.35f
+            tvToggleOtherVehiclesArrow.rotation = 0f
+            tvToggleOtherVehiclesArrow.alpha = 0.35f
             layoutOtherVehicleHeader.alpha = 1f
             return
         }
 
         tvEmptyOtherVehicles.visibility = View.GONE
-        ivToggleOtherVehicles.alpha = 1f
+        tvToggleOtherVehiclesArrow.alpha = 1f
 
         if (isOtherVehiclesExpanded) {
             otherVehicleContainer.visibility = View.VISIBLE
-            ivToggleOtherVehicles.setImageResource(android.R.drawable.arrow_up_float)
+            tvToggleOtherVehiclesArrow.rotation = 90f
         } else {
             otherVehicleContainer.visibility = View.GONE
-            ivToggleOtherVehicles.setImageResource(android.R.drawable.arrow_down_float)
+            tvToggleOtherVehiclesArrow.rotation = 0f
         }
     }
 
@@ -386,8 +387,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             return
         }
 
-        // 第一优先级：读取打包进 App 的图片
-        // 例如 vehicleId = v001，对应图片名就是 res/drawable-nodpi/vehicle_v001.jpg
         val drawableName = "vehicle_${vehicleId.lowercase()}"
         val drawableId = resources.getIdentifier(
             drawableName,
@@ -400,7 +399,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             return
         }
 
-        // 第二优先级：读取手机本地目录图片
         val imageDir = requireContext().getExternalFilesDir("vehicle_images")
         if (imageDir != null) {
             val candidates = listOf(
@@ -419,7 +417,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             }
         }
 
-        // 没有找到车辆图片时，显示默认图
         target.setImageResource(R.drawable.bg_login_car)
     }
 

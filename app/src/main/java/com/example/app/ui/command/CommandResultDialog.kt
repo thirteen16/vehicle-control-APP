@@ -40,8 +40,8 @@ class CommandResultDialog : DialogFragment() {
         val message = buildString {
             append("commandId：${args.getString(ARG_COMMAND_ID).orEmpty()}\n\n")
             append("vehicleId：${args.getString(ARG_VEHICLE_ID).orEmpty()}\n")
-            append("命令类型：${args.getString(ARG_TYPE).orEmpty()}\n")
-            append("执行结果：${args.getString(ARG_RESULT).orEmpty()}\n")
+            append("命令类型：${commandDisplayName(args.getString(ARG_TYPE).orEmpty())}\n")
+            append("执行结果：${formatResult(args.getString(ARG_RESULT).orEmpty())}\n")
             append("请求时间：${args.getString(ARG_REQUEST_TIME).orEmpty()}\n")
             append("响应时间：${args.getString(ARG_RESPONSE_TIME).orEmpty()}\n\n")
             append("请求载荷：\n${args.getString(ARG_REQUEST_PAYLOAD).orEmpty()}\n\n")
@@ -53,5 +53,28 @@ class CommandResultDialog : DialogFragment() {
             .setMessage(message)
             .setPositiveButton("知道了", null)
             .create()
+    }
+
+    private fun commandDisplayName(type: String?): String {
+        return when (type) {
+            "LOCK_ON" -> "关闭车锁"
+            "LOCK_OFF" -> "打开车锁"
+            "HVAC_ON" -> "开启空调"
+            "HVAC_OFF" -> "关闭空调"
+            "WINDOW_OPEN" -> "打开车窗"
+            "WINDOW_CLOSE" -> "关闭车窗"
+            "ENGINE_ON" -> "启动发动机"
+            "ENGINE_OFF" -> "关闭发动机"
+            "STATUS_QUERY" -> "状态查询"
+            else -> type ?: "-"
+        }
+    }
+
+    private fun formatResult(result: String?): String {
+        return if (result.equals("SUCCESS", ignoreCase = true)) {
+            "成功"
+        } else {
+            "超时"
+        }
     }
 }
