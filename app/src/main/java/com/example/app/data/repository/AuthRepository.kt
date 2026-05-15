@@ -7,6 +7,7 @@ import com.example.app.data.model.request.LoginRequest
 import com.example.app.data.model.request.RegisterRequest
 import com.example.app.data.model.request.ResetPasswordRequest
 import com.example.app.data.model.request.SendResetCodeRequest
+import com.example.app.data.model.request.VerifyPinCodeRequest
 import com.example.app.data.model.response.CurrentUserResponse
 import com.example.app.data.model.response.LoginResponse
 import com.example.app.data.remote.api.AuthApi
@@ -273,6 +274,50 @@ class AuthRepository(
             } else {
                 ResultState.Error(
                     message = response.message.ifBlank { "密码重置失败" },
+                    code = response.code
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+
+            ResultState.Error(
+                message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
+            )
+        }
+    }
+
+    suspend fun sendPinCode(): ResultState<String> {
+        return try {
+            val response = authApi.sendPinCode()
+
+            if (response.code == 200) {
+                ResultState.Success(response.message.ifBlank { "PIN 验证码发送成功" })
+            } else {
+                ResultState.Error(
+                    message = response.message.ifBlank { "PIN 验证码发送失败" },
+                    code = response.code
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+
+            ResultState.Error(
+                message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
+            )
+        }
+    }
+
+    suspend fun verifyPinCode(code: String): ResultState<String> {
+        return try {
+            val response = authApi.verifyPinCode(
+                VerifyPinCodeRequest(code = code)
+            )
+
+            if (response.code == 200) {
+                ResultState.Success(response.message.ifBlank { "PIN 验证码校验通过" })
+            } else {
+                ResultState.Error(
+                    message = response.message.ifBlank { "PIN 验证码校验失败" },
                     code = response.code
                 )
             }

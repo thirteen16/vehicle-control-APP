@@ -10,13 +10,26 @@ class PinViewModel(
     private val pinStore: PinStore
 ) : ViewModel() {
 
+    companion object {
+        const val PIN_LENGTH = 6
+    }
+
     private val _uiState = MutableLiveData(PinUiState(hasPin = pinStore.hasPin()))
     val uiState: LiveData<PinUiState> = _uiState
 
     fun refreshStatus() {
-        _uiState.value = (_uiState.value ?: PinUiState()).copy(
+        _uiState.value = current().copy(
             hasPin = pinStore.hasPin()
         )
+    }
+
+    fun hasPin(): Boolean {
+        return pinStore.hasPin()
+    }
+
+    fun isPinCorrect(pin: String): Boolean {
+        val purePin = pin.trim()
+        return isValidPinFormat(purePin) && pinStore.verifyPin(purePin)
     }
 
     fun savePin(pin: String, confirmPin: String) {
@@ -25,22 +38,17 @@ class PinViewModel(
 
         when {
             purePin.isBlank() || pureConfirmPin.isBlank() -> {
-                _uiState.value = current().copy(errorMessage = "请输入完整 PIN")
+                _uiState.value = current().copy(errorMessage = "请输入完整的 6 位 PIN")
                 return
             }
 
-            purePin.length < 4 -> {
-                _uiState.value = current().copy(errorMessage = "PIN 至少 4 位")
+            !isValidPinFormat(purePin) -> {
+                _uiState.value = current().copy(errorMessage = "PIN 必须是 6 位数字")
                 return
             }
 
-            purePin.length > 8 -> {
-                _uiState.value = current().copy(errorMessage = "PIN 最多 8 位")
-                return
-            }
-
-            !purePin.all { it.isDigit() } -> {
-                _uiState.value = current().copy(errorMessage = "PIN 只能是数字")
+            !isValidPinFormat(pureConfirmPin) -> {
+                _uiState.value = current().copy(errorMessage = "确认 PIN 必须是 6 位数字")
                 return
             }
 
@@ -64,9 +72,21 @@ class PinViewModel(
     fun verifyPin(pin: String) {
         val purePin = pin.trim()
 
-        if (purePin.isBlank()) {
-            _uiState.value = current().copy(errorMessage = "请输入 PIN")
-            return
+        when {
+            !pinStore.hasPin() -> {
+                _uiState.value = current().copy(errorMessage = "当前尚未设置 PIN")
+                return
+            }
+
+            purePin.isBlank() -> {
+                _uiState.value = current().copy(errorMessage = "请输入 6 位 PIN")
+                return
+            }
+
+            !isValidPinFormat(purePin) -> {
+                _uiState.value = current().copy(errorMessage = "PIN 必须是 6 位数字")
+                return
+            }
         }
 
         if (pinStore.verifyPin(purePin)) {
@@ -79,7 +99,7 @@ class PinViewModel(
         } else {
             _uiState.value = current().copy(
                 verifySuccess = false,
-                errorMessage = "PIN 错误"
+                errorMessage = "PIN 错误，请重新输入"
             )
         }
     }
@@ -119,6 +139,10 @@ class PinViewModel(
 
     fun consumeClearSuccess() {
         _uiState.value = current().copy(clearSuccess = false)
+    }
+
+    private fun isValidPinFormat(pin: String): Boolean {
+        return pin.length == PIN_LENGTH && pin.all { it in '0'..'9' }
     }
 
     private fun current(): PinUiState {

@@ -4,6 +4,7 @@ import com.example.app.data.model.request.LoginRequest
 import com.example.app.data.model.request.RegisterRequest
 import com.example.app.data.model.request.ResetPasswordRequest
 import com.example.app.data.model.request.SendResetCodeRequest
+import com.example.app.data.model.request.VerifyPinCodeRequest
 import com.example.app.data.model.response.ApiResponse
 import com.example.app.data.model.response.CurrentUserResponse
 import com.example.app.data.model.response.LoginResponse
@@ -34,5 +35,13 @@ interface AuthApi {
     @POST("auth/reset-password")
     suspend fun resetPassword(
         @Body request: ResetPasswordRequest
+    ): ApiResponse<Unit>
+
+    @POST("auth/send-pin-code")
+    suspend fun sendPinCode(): ApiResponse<Unit>
+
+    @POST("auth/verify-pin-code")
+    suspend fun verifyPinCode(
+        @Body request: VerifyPinCodeRequest
     ): ApiResponse<Unit>
 }
