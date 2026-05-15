@@ -3,7 +3,9 @@ package com.example.app.data.remote.api
 import com.example.app.data.model.request.LoginRequest
 import com.example.app.data.model.request.RegisterRequest
 import com.example.app.data.model.request.ResetPasswordRequest
+import com.example.app.data.model.request.SendLoginCodeRequest
 import com.example.app.data.model.request.SendResetCodeRequest
+import com.example.app.data.model.request.SmsLoginRequest
 import com.example.app.data.model.request.VerifyPinCodeRequest
 import com.example.app.data.model.response.ApiResponse
 import com.example.app.data.model.response.CurrentUserResponse
@@ -26,6 +28,16 @@ interface AuthApi {
 
     @GET("me")
     suspend fun getCurrentUser(): ApiResponse<CurrentUserResponse>
+
+    @POST("auth/send-login-code")
+    suspend fun sendLoginCode(
+        @Body request: SendLoginCodeRequest
+    ): ApiResponse<Unit>
+
+    @POST("auth/sms-login")
+    suspend fun smsLogin(
+        @Body request: SmsLoginRequest
+    ): ApiResponse<LoginResponse>
 
     @POST("auth/send-reset-code")
     suspend fun sendResetCode(

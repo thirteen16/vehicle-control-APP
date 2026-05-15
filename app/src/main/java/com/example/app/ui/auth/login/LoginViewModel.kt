@@ -34,15 +34,6 @@ class LoginViewModel(
         }
     }
 
-    /**
-     * 自动登录完整逻辑：
-     *
-     * 1. 没有勾选自动登录：不自动进入主页；
-     * 2. 勾选了自动登录，并且本地 token 有效：直接进入主页；
-     * 3. 勾选了自动登录，但 token 过期：使用保存的账号密码重新登录；
-     * 4. 重新登录成功：保存新 token，并进入主页；
-     * 5. 重新登录失败：关闭自动登录，停留在登录页。
-     */
     fun checkAutoLogin() {
         viewModelScope.launch {
             val rememberedInfo = authRepository.getRememberedLoginInfo()
@@ -53,7 +44,8 @@ class LoginViewModel(
                 rememberPassword = rememberedInfo.rememberPassword || rememberedInfo.autoLoginEnabled,
                 autoLoginEnabled = rememberedInfo.autoLoginEnabled,
                 rememberedInfoLoaded = true,
-                errorMessage = null
+                errorMessage = null,
+                infoMessage = null
             )
 
             if (!rememberedInfo.autoLoginEnabled) {
@@ -64,7 +56,8 @@ class LoginViewModel(
                 isLoading = true,
                 loginSuccess = false,
                 autoLogin = false,
-                errorMessage = null
+                errorMessage = null,
+                infoMessage = null
             )
 
             if (authRepository.hasSavedToken()) {
@@ -73,7 +66,8 @@ class LoginViewModel(
                         _uiState.value = _uiState.value?.copy(
                             isLoading = false,
                             autoLogin = true,
-                            errorMessage = null
+                            errorMessage = null,
+                            infoMessage = null
                         )
                         return@launch
                     }
@@ -87,7 +81,8 @@ class LoginViewModel(
                             _uiState.value = _uiState.value?.copy(
                                 isLoading = false,
                                 autoLogin = false,
-                                errorMessage = validateResult.message
+                                errorMessage = validateResult.message,
+                                infoMessage = null
                             )
                             return@launch
                         }
@@ -107,7 +102,8 @@ class LoginViewModel(
                         loginData = loginResult.data,
                         rememberPassword = true,
                         autoLoginEnabled = true,
-                        errorMessage = null
+                        errorMessage = null,
+                        infoMessage = null
                     )
                 }
 
@@ -119,7 +115,8 @@ class LoginViewModel(
                         autoLogin = false,
                         rememberPassword = rememberedInfo.rememberPassword,
                         autoLoginEnabled = false,
-                        errorMessage = "自动登录失败，请手动登录：" + loginResult.message
+                        errorMessage = "自动登录失败，请手动登录：" + loginResult.message,
+                        infoMessage = null
                     )
                 }
 
@@ -140,16 +137,12 @@ class LoginViewModel(
         val trimPassword = password.trim()
 
         if (trimAccount.isBlank()) {
-            _uiState.value = _uiState.value?.copy(
-                errorMessage = "用户名或手机号不能为空"
-            )
+            _uiState.value = _uiState.value?.copy(errorMessage = "账号不能为空")
             return
         }
 
         if (trimPassword.isBlank()) {
-            _uiState.value = _uiState.value?.copy(
-                errorMessage = "密码不能为空"
-            )
+            _uiState.value = _uiState.value?.copy(errorMessage = "密码不能为空")
             return
         }
 
@@ -158,6 +151,7 @@ class LoginViewModel(
         _uiState.value = _uiState.value?.copy(
             isLoading = true,
             errorMessage = null,
+            infoMessage = null,
             loginSuccess = false,
             autoLogin = false
         )
@@ -178,7 +172,8 @@ class LoginViewModel(
                         loginData = result.data,
                         rememberPassword = finalRememberPassword,
                         autoLoginEnabled = autoLoginEnabled,
-                        errorMessage = null
+                        errorMessage = null,
+                        infoMessage = null
                     )
                 }
 
@@ -186,7 +181,8 @@ class LoginViewModel(
                     _uiState.value = _uiState.value?.copy(
                         isLoading = false,
                         loginSuccess = false,
-                        errorMessage = result.message
+                        errorMessage = result.message,
+                        infoMessage = null
                     )
                 }
 
@@ -197,8 +193,100 @@ class LoginViewModel(
         }
     }
 
+    fun sendLoginCode(phone: String) {
+        val trimPhone = phone.trim()
+
+        if (!isValidPhone(trimPhone)) {
+            _uiState.value = _uiState.value?.copy(errorMessage = "请输入正确的11位手机号")
+            return
+        }
+
+        viewModelScope.launch {
+            when (val result = authRepository.sendLoginCode(trimPhone)) {
+                is ResultState.Success -> {
+                    _uiState.value = _uiState.value?.copy(
+                        errorMessage = null,
+                        infoMessage = result.data.ifBlank { "验证码发送成功" }
+                    )
+                }
+
+                is ResultState.Error -> {
+                    _uiState.value = _uiState.value?.copy(
+                        errorMessage = result.message,
+                        infoMessage = null
+                    )
+                }
+
+                ResultState.Loading -> Unit
+            }
+        }
+    }
+
+    fun smsLogin(phone: String, code: String) {
+        val trimPhone = phone.trim()
+        val trimCode = code.trim()
+
+        if (!isValidPhone(trimPhone)) {
+            _uiState.value = _uiState.value?.copy(errorMessage = "请输入正确的11位手机号")
+            return
+        }
+
+        if (!trimCode.matches(Regex("^\\d{6}$"))) {
+            _uiState.value = _uiState.value?.copy(errorMessage = "验证码必须是6位数字")
+            return
+        }
+
+        _uiState.value = _uiState.value?.copy(
+            isLoading = true,
+            errorMessage = null,
+            infoMessage = null,
+            loginSuccess = false,
+            autoLogin = false
+        )
+
+        viewModelScope.launch {
+            when (val result = authRepository.smsLogin(trimPhone, trimCode)) {
+                is ResultState.Success -> {
+                    _uiState.value = _uiState.value?.copy(
+                        isLoading = false,
+                        loginSuccess = true,
+                        loginData = result.data,
+                        rememberPassword = false,
+                        autoLoginEnabled = false,
+                        errorMessage = null,
+                        infoMessage = null
+                    )
+                }
+
+                is ResultState.Error -> {
+                    _uiState.value = _uiState.value?.copy(
+                        isLoading = false,
+                        loginSuccess = false,
+                        errorMessage = result.message,
+                        infoMessage = null
+                    )
+                }
+
+                ResultState.Loading -> {
+                    _uiState.value = _uiState.value?.copy(isLoading = true)
+                }
+            }
+        }
+    }
+
+    fun clearTransientMessages() {
+        _uiState.value = _uiState.value?.copy(
+            errorMessage = null,
+            infoMessage = null
+        )
+    }
+
     fun clearError() {
-        _uiState.value = _uiState.value?.copy(errorMessage = null)
+        clearTransientMessages()
+    }
+
+    private fun isValidPhone(phone: String): Boolean {
+        return phone.matches(Regex("^1[3-9]\\d{9}$"))
     }
 
     class Factory(

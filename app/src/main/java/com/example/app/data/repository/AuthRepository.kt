@@ -6,7 +6,9 @@ import com.example.app.data.local.TokenStore
 import com.example.app.data.model.request.LoginRequest
 import com.example.app.data.model.request.RegisterRequest
 import com.example.app.data.model.request.ResetPasswordRequest
+import com.example.app.data.model.request.SendLoginCodeRequest
 import com.example.app.data.model.request.SendResetCodeRequest
+import com.example.app.data.model.request.SmsLoginRequest
 import com.example.app.data.model.request.VerifyPinCodeRequest
 import com.example.app.data.model.response.CurrentUserResponse
 import com.example.app.data.model.response.LoginResponse
@@ -30,15 +32,6 @@ class AuthRepository(
         tokenStore.setAutoLoginEnabled(false)
     }
 
-    /**
-     * 校验本地 token 是否仍然有效。
-     *
-     * 逻辑：
-     * 1. 本地没有 token，直接认为无效；
-     * 2. 本地有 token，请求 /me；
-     * 3. /me 成功，说明 token 没过期，可以直接进主页；
-     * 4. /me 返回 401、403 或业务失败，说明 token 不可用，清除旧 token。
-     */
     suspend fun validateSavedLoginSession(): ResultState<CurrentUserResponse> {
         val token = tokenStore.getToken()
 
@@ -82,16 +75,6 @@ class AuthRepository(
         }
     }
 
-    /**
-     * token 过期后的自动重新登录。
-     *
-     * 前提：
-     * 1. 用户之前勾选过自动登录；
-     * 2. 本地保存了账号；
-     * 3. 本地保存了密码。
-     *
-     * 成功后会保存新的 token。
-     */
     suspend fun autoLoginWithSavedCredentials(): ResultState<LoginResponse> {
         val rememberedInfo = tokenStore.getRememberedLoginInfo()
 
@@ -146,6 +129,71 @@ class AuthRepository(
             } else {
                 ResultState.Error(
                     message = response.message.ifBlank { "登录失败" },
+                    code = response.code
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+
+            ResultState.Error(
+                message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
+            )
+        }
+    }
+
+    suspend fun sendLoginCode(phone: String): ResultState<String> {
+        return try {
+            val response = authApi.sendLoginCode(
+                SendLoginCodeRequest(phone = phone)
+            )
+
+            if (response.code == 200) {
+                ResultState.Success(response.message.ifBlank { "验证码发送成功" })
+            } else {
+                ResultState.Error(
+                    message = response.message.ifBlank { "验证码发送失败" },
+                    code = response.code
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+
+            ResultState.Error(
+                message = e.javaClass.simpleName + ": " + (e.message ?: "网络请求失败")
+            )
+        }
+    }
+
+    suspend fun smsLogin(
+        phone: String,
+        code: String
+    ): ResultState<LoginResponse> {
+        return try {
+            val response = authApi.smsLogin(
+                SmsLoginRequest(
+                    phone = phone,
+                    code = code
+                )
+            )
+
+            if (response.code == 200 && response.data != null) {
+                tokenStore.saveLoginSession(
+                    token = response.data.token,
+                    userId = response.data.userId,
+                    username = response.data.username ?: phone
+                )
+
+                tokenStore.saveRememberedLoginInfo(
+                    account = phone,
+                    password = "",
+                    rememberPassword = false,
+                    autoLoginEnabled = false
+                )
+
+                ResultState.Success(response.data)
+            } else {
+                ResultState.Error(
+                    message = response.message.ifBlank { "短信验证码登录失败" },
                     code = response.code
                 )
             }
@@ -330,11 +378,6 @@ class AuthRepository(
         }
     }
 
-    /**
-     * 用户主动退出登录时，必须关闭自动登录。
-     *
-     * 否则用户点了退出登录，下次打开 App 又会用保存的账号密码自动登录回来。
-     */
     suspend fun logout() {
         tokenStore.clearLoginSession()
         tokenStore.setAutoLoginEnabled(false)
