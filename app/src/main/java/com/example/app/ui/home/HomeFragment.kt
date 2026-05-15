@@ -2,6 +2,7 @@ package com.example.app.ui.home
 
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,6 +21,7 @@ import com.example.app.data.repository.VehicleRepository
 import com.example.app.di.NetworkModule
 import com.example.app.ui.main.AppRealtimeViewModel
 import com.example.app.ui.vehicle.location.VehicleLocationActivity
+import java.io.File
 
 class HomeFragment : Fragment(R.layout.fragment_home) {
 
@@ -28,6 +30,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private lateinit var tvVehicleCount: TextView
 
+    private lateinit var ivCurrentVehicleImage: ImageView
     private lateinit var tvCurrentVehicleName: TextView
     private lateinit var tvCurrentVehicleId: TextView
     private lateinit var tvCurrentBrandModel: TextView
@@ -42,7 +45,10 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private lateinit var ivRefreshCurrent: ImageView
     private lateinit var ivCurrentLocation: ImageView
 
+    private lateinit var layoutOtherVehicleHeader: LinearLayout
     private lateinit var tvOtherVehicleTitle: TextView
+    private lateinit var tvOtherVehicleCount: TextView
+    private lateinit var ivToggleOtherVehicles: ImageView
     private lateinit var tvEmptyOtherVehicles: TextView
     private lateinit var otherVehicleContainer: LinearLayout
 
@@ -52,6 +58,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private var lastOtherVehicleSignature: String? = null
     private var lastSelectedVehicleId: String? = null
     private var refreshAnimator: ObjectAnimator? = null
+    private var isOtherVehiclesExpanded = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -85,6 +92,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
         tvVehicleCount = view.findViewById(R.id.tvVehicleCount)
 
+        ivCurrentVehicleImage = view.findViewById(R.id.ivCurrentVehicleImage)
         tvCurrentVehicleName = view.findViewById(R.id.tvCurrentVehicleName)
         tvCurrentVehicleId = view.findViewById(R.id.tvCurrentVehicleId)
         tvCurrentBrandModel = view.findViewById(R.id.tvCurrentBrandModel)
@@ -99,7 +107,10 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         ivRefreshCurrent = view.findViewById(R.id.ivRefreshCurrent)
         ivCurrentLocation = view.findViewById(R.id.ivCurrentLocation)
 
+        layoutOtherVehicleHeader = view.findViewById(R.id.layoutOtherVehicleHeader)
         tvOtherVehicleTitle = view.findViewById(R.id.tvOtherVehicleTitle)
+        tvOtherVehicleCount = view.findViewById(R.id.tvOtherVehicleCount)
+        ivToggleOtherVehicles = view.findViewById(R.id.ivToggleOtherVehicles)
         tvEmptyOtherVehicles = view.findViewById(R.id.tvEmptyOtherVehicles)
         otherVehicleContainer = view.findViewById(R.id.otherVehicleContainer)
     }
@@ -122,6 +133,23 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 }
             )
         }
+
+        layoutOtherVehicleHeader.setOnClickListener {
+            toggleOtherVehicles()
+        }
+
+        ivToggleOtherVehicles.setOnClickListener {
+            toggleOtherVehicles()
+        }
+    }
+
+    private fun toggleOtherVehicles() {
+        val state = viewModel.uiState.value ?: return
+        val otherCount = state.vehicles.count { it.vehicleId != state.selectedVehicleId }
+        if (otherCount == 0) return
+
+        isOtherVehiclesExpanded = !isOtherVehiclesExpanded
+        updateOtherVehicleSectionVisibility(otherCount)
     }
 
     private fun observeUiState() {
@@ -186,8 +214,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             ?: "未绑定车辆"
 
         val vehicleId = state.selectedVehicleId ?: "-"
-        val brand = selectedState?.brand ?: selectedVehicle?.brand ?: "-"
-        val model = selectedState?.model ?: selectedVehicle?.model ?: "-"
+        val brand = selectedState?.brand ?: selectedVehicle?.brand ?: ""
+        val model = selectedState?.model ?: selectedVehicle?.model ?: ""
+
+        val brandModelText = listOf(brand, model)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .ifBlank { "-" }
 
         val onlineText = when (selectedState?.onlineStatus ?: selectedVehicle?.onlineStatus) {
             1 -> "在线"
@@ -204,16 +237,18 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val updatedText = selectedState?.updatedTime ?: selectedVehicle?.updatedTime ?: "-"
 
         tvCurrentVehicleName.text = vehicleName
-        tvCurrentVehicleId.text = "vehicleId：$vehicleId"
-        tvCurrentBrandModel.text = "品牌 / 型号：$brand / $model"
-        tvCurrentOnlineStatus.text = "在线状态：$onlineText"
-        tvCurrentLockStatus.text = "车锁状态：$lockText"
-        tvCurrentEngineStatus.text = "发动机：$engineText"
-        tvCurrentHvacStatus.text = "空调：$hvacText"
-        tvCurrentWindowStatus.text = "车窗：$windowText"
-        tvCurrentMileage.text = "总里程：$mileageText"
-        tvCurrentFuelLevel.text = "油量：$fuelText"
-        tvCurrentUpdatedTime.text = "更新时间：$updatedText"
+        tvCurrentVehicleId.text = vehicleId
+        tvCurrentBrandModel.text = brandModelText
+        tvCurrentOnlineStatus.text = onlineText
+        tvCurrentLockStatus.text = lockText
+        tvCurrentEngineStatus.text = engineText
+        tvCurrentHvacStatus.text = hvacText
+        tvCurrentWindowStatus.text = windowText
+        tvCurrentMileage.text = mileageText
+        tvCurrentFuelLevel.text = fuelText
+        tvCurrentUpdatedTime.text = updatedText
+
+        loadVehicleImage(vehicleId = state.selectedVehicleId, target = ivCurrentVehicleImage)
 
         val hasSelectedVehicle = !state.selectedVehicleId.isNullOrBlank()
         ivCurrentLocation.isEnabled = hasSelectedVehicle
@@ -252,10 +287,10 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         otherVehicleContainer.removeAllViews()
 
         val otherVehicles = state.vehicles.filter { it.vehicleId != state.selectedVehicleId }
+        val otherCount = otherVehicles.size
 
-        tvOtherVehicleTitle.text = "其他车辆 (${otherVehicles.size})"
-        tvEmptyOtherVehicles.visibility = if (otherVehicles.isEmpty()) View.VISIBLE else View.GONE
-        otherVehicleContainer.visibility = if (otherVehicles.isEmpty()) View.GONE else View.VISIBLE
+        tvOtherVehicleTitle.text = "其他绑定车辆"
+        tvOtherVehicleCount.text = otherCount.toString()
 
         val inflater = LayoutInflater.from(requireContext())
 
@@ -263,33 +298,44 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             val itemView = inflater.inflate(R.layout.item_home_vehicle, otherVehicleContainer, false)
 
             val root = itemView.findViewById<View>(R.id.rootVehicleCard)
+            val ivVehicleImage = itemView.findViewById<ImageView>(R.id.ivVehicleImage)
             val tvName = itemView.findViewById<TextView>(R.id.tvVehicleName)
-            val tvVehicleId = itemView.findViewById<TextView>(R.id.tvVehicleId)
             val tvBrandModel = itemView.findViewById<TextView>(R.id.tvBrandModel)
             val tvMileage = itemView.findViewById<TextView>(R.id.tvMileage)
+            val tvVehicleOnlineStatus = itemView.findViewById<TextView>(R.id.tvVehicleOnlineStatus)
+            val tvVehicleFuelLevel = itemView.findViewById<TextView>(R.id.tvVehicleFuelLevel)
+            val tvVehicleId = itemView.findViewById<TextView>(R.id.tvVehicleId)
             val tvHint = itemView.findViewById<TextView>(R.id.tvHint)
             val ivLocation = itemView.findViewById<ImageView>(R.id.ivLocation)
 
             val displayName = vehicle.name.ifBlank { vehicle.vehicleId }
             val brandModelText = listOfNotNull(vehicle.brand, vehicle.model)
                 .filter { it.isNotBlank() }
-                .joinToString(" / ")
-                .ifBlank { "暂无车型信息" }
+                .joinToString(" ")
+                .ifBlank { "-" }
+
+            val onlineText = when (vehicle.onlineStatus) {
+                1 -> "在线"
+                0 -> "离线"
+                else -> "-"
+            }
+
+            val fuelText = "${vehicle.fuelLevel ?: "-"}%"
+            val mileageText = "${vehicle.mileage ?: "-"} km"
 
             tvName.text = displayName
-            tvVehicleId.text = "vehicleId：${vehicle.vehicleId}"
-            tvBrandModel.text = "品牌 / 型号：$brandModelText"
-            tvMileage.text = "总里程：${vehicle.mileage ?: "-"} km"
-            tvHint.text = "点击卡片可切换为当前车辆"
+            tvBrandModel.text = brandModelText
+            tvVehicleOnlineStatus.text = onlineText
+            tvVehicleFuelLevel.text = fuelText
+            tvMileage.text = mileageText
 
-            val isSelected = vehicle.vehicleId == state.selectedVehicleId
-            root.setBackgroundResource(
-                if (isSelected) {
-                    R.drawable.bg_vehicle_card_selected
-                } else {
-                    R.drawable.bg_vehicle_card_normal
-                }
-            )
+            // 这两个 id 保留，但页面不显示
+            tvVehicleId.text = vehicle.vehicleId
+            tvHint.text = ""
+
+            loadVehicleImage(vehicleId = vehicle.vehicleId, target = ivVehicleImage)
+
+            root.setBackgroundResource(R.drawable.bg_car_card)
 
             root.setOnClickListener {
                 viewModel.selectVehicle(vehicle.vehicleId)
@@ -306,6 +352,75 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
             otherVehicleContainer.addView(itemView)
         }
+
+        updateOtherVehicleSectionVisibility(otherCount)
+    }
+
+    private fun updateOtherVehicleSectionVisibility(otherCount: Int) {
+        tvOtherVehicleCount.text = otherCount.toString()
+
+        if (otherCount == 0) {
+            tvEmptyOtherVehicles.visibility = View.VISIBLE
+            otherVehicleContainer.visibility = View.GONE
+            ivToggleOtherVehicles.setImageResource(android.R.drawable.arrow_down_float)
+            ivToggleOtherVehicles.alpha = 0.35f
+            layoutOtherVehicleHeader.alpha = 1f
+            return
+        }
+
+        tvEmptyOtherVehicles.visibility = View.GONE
+        ivToggleOtherVehicles.alpha = 1f
+
+        if (isOtherVehiclesExpanded) {
+            otherVehicleContainer.visibility = View.VISIBLE
+            ivToggleOtherVehicles.setImageResource(android.R.drawable.arrow_up_float)
+        } else {
+            otherVehicleContainer.visibility = View.GONE
+            ivToggleOtherVehicles.setImageResource(android.R.drawable.arrow_down_float)
+        }
+    }
+
+    private fun loadVehicleImage(vehicleId: String?, target: ImageView) {
+        if (vehicleId.isNullOrBlank()) {
+            target.setImageResource(R.drawable.bg_login_car)
+            return
+        }
+
+        // 第一优先级：读取打包进 App 的图片
+        // 例如 vehicleId = v001，对应图片名就是 res/drawable-nodpi/vehicle_v001.jpg
+        val drawableName = "vehicle_${vehicleId.lowercase()}"
+        val drawableId = resources.getIdentifier(
+            drawableName,
+            "drawable",
+            requireContext().packageName
+        )
+
+        if (drawableId != 0) {
+            target.setImageResource(drawableId)
+            return
+        }
+
+        // 第二优先级：读取手机本地目录图片
+        val imageDir = requireContext().getExternalFilesDir("vehicle_images")
+        if (imageDir != null) {
+            val candidates = listOf(
+                File(imageDir, "$vehicleId.jpg"),
+                File(imageDir, "$vehicleId.jpeg"),
+                File(imageDir, "$vehicleId.png")
+            )
+
+            val imageFile = candidates.firstOrNull { it.exists() && it.isFile }
+            if (imageFile != null) {
+                val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
+                if (bitmap != null) {
+                    target.setImageBitmap(bitmap)
+                    return
+                }
+            }
+        }
+
+        // 没有找到车辆图片时，显示默认图
+        target.setImageResource(R.drawable.bg_login_car)
     }
 
     private fun buildOtherVehicleSignature(state: HomeUiState): String {
@@ -320,6 +435,10 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 append(vehicle.brand)
                 append("|")
                 append(vehicle.model)
+                append("|")
+                append(vehicle.onlineStatus)
+                append("|")
+                append(vehicle.fuelLevel)
                 append("|")
                 append(vehicle.mileage)
                 append(";")

@@ -3,73 +3,151 @@
     android:id="@+id/rootVehicleCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="14dp"
-    android:background="@drawable/bg_dashboard_vehicle_card"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_car_card"
     android:orientation="vertical"
-    android:padding="18dp">
+    android:padding="12dp">
 
-    <TextView
-        android:id="@+id/tvVehicleName"
+    <ImageView
+        android:id="@+id/ivVehicleImage"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Tesla Model 3"
-        android:textColor="#FFFFFF"
-        android:textSize="19sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvVehicleId"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="vehicleId：v001"
-        android:textColor="#A8B8D8"
-        android:textSize="13sp" />
-
-    <TextView
-        android:id="@+id/tvBrandModel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="品牌 / 型号：Tesla / Model 3"
-        android:textColor="#E7ECFA"
-        android:textSize="14sp" />
-
-    <TextView
-        android:id="@+id/tvMileage"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="总里程：12345 km"
-        android:textColor="#E7ECFA"
-        android:textSize="14sp" />
+        android:layout_height="140dp"
+        android:adjustViewBounds="true"
+        android:background="@color/card_light"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_login_car" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="12dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/tvHint"
+            android:id="@+id/tvVehicleName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="点击卡片可切换为当前车辆"
-            android:textColor="#8EA0C4"
-            android:textSize="12sp" />
+            android:text="车辆名称"
+            android:textColor="@color/car_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
         <ImageView
             android:id="@+id/ivLocation"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="@drawable/bg_dashboard_icon_circle"
+            android:background="@drawable/bg_car_soft_button"
             android:clickable="true"
             android:focusable="true"
-            android:padding="10dp"
+            android:padding="9dp"
             android:src="@android:drawable/ic_menu_mylocation"
-            android:tint="#EAF1FF" />
+            android:tint="@color/car_primary_dark" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvBrandModel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="-"
+        android:textColor="@color/car_text_secondary"
+        android:textSize="15sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="在线/离线"
+                android:textColor="@color/car_text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleOnlineStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="-"
+                android:textColor="@color/car_text_primary"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="油量"
+                android:textColor="@color/car_text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvVehicleFuelLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="-"
+                android:textColor="@color/car_text_primary"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="总里程"
+            android:textColor="@color/car_text_secondary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/tvMileage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="- km"
+            android:textColor="@color/car_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 保留原 id，隐藏 -->
+    <TextView
+        android:id="@+id/tvVehicleId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="-"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="-"
+        android:visibility="gone" />
 
 </LinearLayout>
