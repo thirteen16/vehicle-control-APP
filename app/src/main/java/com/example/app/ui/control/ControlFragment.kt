@@ -148,7 +148,7 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         btnEngineOff.setOnClickListener { requestProtectedCommand("ENGINE_OFF") }
 
         btnStatusQuery.setOnClickListener {
-            viewModel.sendCommand("STATUS_QUERY")
+            requestStatusQueryCommand()
         }
 
         ivRefreshVehicleState.setOnClickListener {
@@ -165,7 +165,7 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         }
 
         if (state.onlineStatus != 1) {
-            Toast.makeText(requireContext(), "车辆离线，暂不可执行该操作", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "车辆离线，暂不可执行远程控制", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -182,6 +182,22 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         }
 
         pinVerifyLauncher.launch(Intent(requireContext(), PinVerifyActivity::class.java))
+    }
+
+    private fun requestStatusQueryCommand() {
+        val state = viewModel.uiState.value ?: return
+
+        if (state.selectedVehicleId.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "请先在主页选择一辆车", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (state.onlineStatus != 1) {
+            Toast.makeText(requireContext(), "车辆离线，不能向车辆发送状态查询命令", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewModel.sendCommand("STATUS_QUERY")
     }
 
     private fun observeUiState() {
@@ -232,22 +248,25 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         val busy = state.isLoading || state.isPolling
         val online = state.onlineStatus == 1
 
-        val canProtectedOperate = hasVehicle && online && !busy
-        val canQuery = hasVehicle && !busy
+        val canOperate = hasVehicle && online && !busy
 
-        applyButtonState(btnLockOn, canProtectedOperate && !state.lockStatus.equals("LOCKED", true))
-        applyButtonState(btnLockOff, canProtectedOperate && !state.lockStatus.equals("UNLOCKED", true))
+        applyButtonState(btnLockOn, canOperate && !state.lockStatus.equals("LOCKED", true))
+        applyButtonState(btnLockOff, canOperate && !state.lockStatus.equals("UNLOCKED", true))
 
-        applyButtonState(btnHvacOn, canProtectedOperate && !state.hvacStatus.equals("ON", true))
-        applyButtonState(btnHvacOff, canProtectedOperate && !state.hvacStatus.equals("OFF", true))
+        applyButtonState(btnHvacOn, canOperate && !state.hvacStatus.equals("ON", true))
+        applyButtonState(btnHvacOff, canOperate && !state.hvacStatus.equals("OFF", true))
 
-        applyButtonState(btnWindowOpen, canProtectedOperate && !state.windowStatus.equals("OPEN", true))
-        applyButtonState(btnWindowClose, canProtectedOperate && !state.windowStatus.equals("CLOSED", true))
+        applyButtonState(btnWindowOpen, canOperate && !state.windowStatus.equals("OPEN", true))
+        applyButtonState(btnWindowClose, canOperate && !state.windowStatus.equals("CLOSED", true))
 
-        applyButtonState(btnEngineOn, canProtectedOperate && !state.engineStatus.equals("ON", true))
-        applyButtonState(btnEngineOff, canProtectedOperate && !state.engineStatus.equals("OFF", true))
+        applyButtonState(btnEngineOn, canOperate && !state.engineStatus.equals("ON", true))
+        applyButtonState(btnEngineOff, canOperate && !state.engineStatus.equals("OFF", true))
 
-        applyButtonState(btnStatusQuery, canQuery)
+        /*
+         * 状态查询也是向车辆发送 MQTT 命令。
+         * 所以车辆离线时也不允许点击。
+         */
+        applyButtonState(btnStatusQuery, canOperate)
 
         btnLockOn.text = if (state.lockStatus.equals("LOCKED", true)) "已上锁" else "上锁"
         btnLockOff.text = if (state.lockStatus.equals("UNLOCKED", true)) "已解锁" else "解锁"
@@ -263,6 +282,10 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
     }
 
     private fun renderRefreshState(state: ControlUiState) {
+        /*
+         * 刷新按钮只是从后端数据库读取车辆状态，不是远程控制车辆。
+         * 所以离线时仍然允许点击刷新。
+         */
         val canRefresh = !state.selectedVehicleId.isNullOrBlank() && !state.isLoading && !state.isPolling
         ivRefreshVehicleState.isEnabled = canRefresh
         ivRefreshVehicleState.alpha = if (canRefresh) 1f else 0.45f
@@ -288,8 +311,8 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             state.isLoading -> "正在同步车辆状态…"
             state.pendingCommandType != null -> "正在执行：${commandDisplayName(state.pendingCommandType)}"
             state.isPolling -> "正在等待车辆返回操作结果…"
-            state.onlineStatus == 0 -> "车辆当前离线，可先尝试状态查询或稍后再试"
-            else -> "请选择需要执行的远程控制操作"
+            state.onlineStatus == 0 -> "车辆当前离线，远程控制按钮已禁用。请先启动车机或等待车辆上线"
+            else -> "车辆在线，可执行远程控制操作"
         }
     }
 

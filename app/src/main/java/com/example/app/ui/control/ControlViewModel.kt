@@ -172,17 +172,35 @@ class ControlViewModel(
     }
 
     fun sendCommand(type: String) {
-        val vehicleId = _uiState.value?.selectedVehicleId
+        val currentState = _uiState.value ?: ControlUiState()
+        val vehicleId = currentState.selectedVehicleId
+
         if (vehicleId.isNullOrBlank()) {
-            _uiState.value = (_uiState.value ?: ControlUiState()).copy(
+            _uiState.value = currentState.copy(
                 errorMessage = "请先在车辆页选择一辆车"
+            )
+            return
+        }
+
+        /*
+         * 新增前端二次保护：
+         * 即使按钮层漏掉了判断，这里也不允许离线车辆发送远程控制命令。
+         *
+         * 后端仍然有最终校验，所以这里是用户体验层面的提前拦截。
+         */
+        if (currentState.onlineStatus != 1) {
+            _uiState.value = currentState.copy(
+                isLoading = false,
+                isPolling = false,
+                pendingCommandType = null,
+                errorMessage = "车辆当前离线，无法执行远程控制"
             )
             return
         }
 
         pollingJob?.cancel()
 
-        _uiState.value = (_uiState.value ?: ControlUiState()).copy(
+        _uiState.value = currentState.copy(
             isLoading = true,
             isPolling = false,
             pendingCommandType = type,
@@ -304,7 +322,7 @@ class ControlViewModel(
             _uiState.value = (_uiState.value ?: ControlUiState()).copy(
                 isPolling = false,
                 pendingCommandType = null,
-                infoMessage = "命令仍在等待设备回执，请确认 mock-device 或车机是否在线"
+                infoMessage = "命令仍在等待设备回执，请确认模拟车机或真实车机是否在线"
             )
         }
     }
