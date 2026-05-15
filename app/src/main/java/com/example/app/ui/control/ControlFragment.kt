@@ -2,6 +2,7 @@ package com.example.app.ui.control
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -10,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.app.R
@@ -206,11 +208,12 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
             progressBar.visibility = if (busy) View.VISIBLE else View.GONE
 
             tvSelectedVehicle.text = state.selectedVehicleId ?: "未选择车辆"
-            tvVehicleOnlineStatus.text = "在线状态：${onlineText(state.onlineStatus)}"
-            tvVehicleLockStatus.text = "车锁状态：${state.lockStatus ?: "-"}"
-            tvVehicleEngineStatus.text = "发动机：${state.engineStatus ?: "-"}"
-            tvVehicleHvacStatus.text = "空调：${state.hvacStatus ?: "-"}"
-            tvVehicleWindowStatus.text = "车窗：${state.windowStatus ?: "-"}"
+            renderOnlineStatus(state.onlineStatus)
+
+            tvVehicleLockStatus.text = lockUiText(state.lockStatus)
+            tvVehicleEngineStatus.text = onOffUiText(state.engineStatus)
+            tvVehicleHvacStatus.text = onOffUiText(state.hvacStatus)
+            tvVehicleWindowStatus.text = windowUiText(state.windowStatus)
             tvControlHint.text = buildControlHint(state)
             tvLatestActionResult.text = buildLatestActionResult(state)
 
@@ -247,54 +250,146 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
         val hasVehicle = !state.selectedVehicleId.isNullOrBlank()
         val busy = state.isLoading || state.isPolling
         val online = state.onlineStatus == 1
-
         val canOperate = hasVehicle && online && !busy
 
-        applyButtonState(btnLockOn, canOperate && !state.lockStatus.equals("LOCKED", true))
-        applyButtonState(btnLockOff, canOperate && !state.lockStatus.equals("UNLOCKED", true))
+        val lockOpened = isLockOpened(state.lockStatus)
+        val lockClosed = isLockClosed(state.lockStatus)
+        applyCommandButtonState(btnLockOff, canOperate && !lockOpened, isOpenButton = true)
+        applyCommandButtonState(btnLockOn, canOperate && !lockClosed, isOpenButton = false)
 
-        applyButtonState(btnHvacOn, canOperate && !state.hvacStatus.equals("ON", true))
-        applyButtonState(btnHvacOff, canOperate && !state.hvacStatus.equals("OFF", true))
+        val engineOn = isOn(state.engineStatus)
+        val engineOff = isOff(state.engineStatus)
+        applyCommandButtonState(btnEngineOn, canOperate && !engineOn, isOpenButton = true)
+        applyCommandButtonState(btnEngineOff, canOperate && !engineOff, isOpenButton = false)
 
-        applyButtonState(btnWindowOpen, canOperate && !state.windowStatus.equals("OPEN", true))
-        applyButtonState(btnWindowClose, canOperate && !state.windowStatus.equals("CLOSED", true))
+        val hvacOn = isOn(state.hvacStatus)
+        val hvacOff = isOff(state.hvacStatus)
+        applyCommandButtonState(btnHvacOn, canOperate && !hvacOn, isOpenButton = true)
+        applyCommandButtonState(btnHvacOff, canOperate && !hvacOff, isOpenButton = false)
 
-        applyButtonState(btnEngineOn, canOperate && !state.engineStatus.equals("ON", true))
-        applyButtonState(btnEngineOff, canOperate && !state.engineStatus.equals("OFF", true))
+        val windowOpen = isWindowOpen(state.windowStatus)
+        val windowClosed = isWindowClosed(state.windowStatus)
+        applyCommandButtonState(btnWindowOpen, canOperate && !windowOpen, isOpenButton = true)
+        applyCommandButtonState(btnWindowClose, canOperate && !windowClosed, isOpenButton = false)
 
-        /*
-         * 状态查询也是向车辆发送 MQTT 命令。
-         * 所以车辆离线时也不允许点击。
-         */
-        applyButtonState(btnStatusQuery, canOperate)
+        applyCommandButtonState(btnStatusQuery, canOperate, isOpenButton = true)
 
-        btnLockOn.text = if (state.lockStatus.equals("LOCKED", true)) "已上锁" else "上锁"
-        btnLockOff.text = if (state.lockStatus.equals("UNLOCKED", true)) "已解锁" else "解锁"
+        btnLockOff.text = "开"
+        btnLockOn.text = "关"
+        btnEngineOn.text = "开"
+        btnEngineOff.text = "关"
+        btnHvacOn.text = "开"
+        btnHvacOff.text = "关"
+        btnWindowOpen.text = "开"
+        btnWindowClose.text = "关"
+    }
 
-        btnHvacOn.text = if (state.hvacStatus.equals("ON", true)) "空调已开启" else "开启空调"
-        btnHvacOff.text = if (state.hvacStatus.equals("OFF", true)) "空调已关闭" else "关闭空调"
+    private fun renderOnlineStatus(onlineStatus: Int?) {
+        when (onlineStatus) {
+            1 -> {
+                tvVehicleOnlineStatus.text = "在线"
+                tvVehicleOnlineStatus.setBackgroundResource(R.drawable.bg_status_success)
+                tvVehicleOnlineStatus.setTextColor(Color.parseColor("#159A86"))
+            }
 
-        btnWindowOpen.text = if (state.windowStatus.equals("OPEN", true)) "车窗已打开" else "打开车窗"
-        btnWindowClose.text = if (state.windowStatus.equals("CLOSED", true)) "车窗已关闭" else "关闭车窗"
+            0 -> {
+                tvVehicleOnlineStatus.text = "离线"
+                tvVehicleOnlineStatus.setBackgroundResource(R.drawable.bg_status_failed)
+                tvVehicleOnlineStatus.setTextColor(Color.parseColor("#F04438"))
+            }
 
-        btnEngineOn.text = if (state.engineStatus.equals("ON", true)) "发动机已启动" else "启动发动机"
-        btnEngineOff.text = if (state.engineStatus.equals("OFF", true)) "发动机已关闭" else "关闭发动机"
+            else -> {
+                tvVehicleOnlineStatus.text = "-"
+                tvVehicleOnlineStatus.setBackgroundResource(R.drawable.bg_status_pending)
+                tvVehicleOnlineStatus.setTextColor(Color.parseColor("#7B8794"))
+            }
+        }
     }
 
     private fun renderRefreshState(state: ControlUiState) {
-        /*
-         * 刷新按钮只是从后端数据库读取车辆状态，不是远程控制车辆。
-         * 所以离线时仍然允许点击刷新。
-         */
         val canRefresh = !state.selectedVehicleId.isNullOrBlank() && !state.isLoading && !state.isPolling
         ivRefreshVehicleState.isEnabled = canRefresh
         ivRefreshVehicleState.alpha = if (canRefresh) 1f else 0.45f
         ivRefreshVehicleState.rotation = if (state.isLoading || state.isPolling) 180f else 0f
     }
 
-    private fun applyButtonState(button: Button, enabled: Boolean) {
+    private fun applyCommandButtonState(button: Button, enabled: Boolean, isOpenButton: Boolean) {
         button.isEnabled = enabled
-        button.alpha = if (enabled) 1f else 0.45f
+        button.alpha = 1f
+
+        if (enabled) {
+            button.setBackgroundResource(
+                if (isOpenButton) R.drawable.bg_button_primary else R.drawable.bg_button_danger
+            )
+            button.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+        } else {
+            button.setBackgroundResource(R.drawable.bg_button_secondary)
+            button.setTextColor(Color.parseColor("#9AA5B1"))
+        }
+    }
+
+    private fun lockUiText(status: String?): String {
+        return when {
+            isLockOpened(status) -> "开"
+            isLockClosed(status) -> "关"
+            else -> "-"
+        }
+    }
+
+    private fun onOffUiText(status: String?): String {
+        return when {
+            isOn(status) -> "开"
+            isOff(status) -> "关"
+            else -> "-"
+        }
+    }
+
+    private fun windowUiText(status: String?): String {
+        return when {
+            isWindowOpen(status) -> "开"
+            isWindowClosed(status) -> "关"
+            else -> "-"
+        }
+    }
+
+    private fun isLockOpened(status: String?): Boolean {
+        return status.equals("UNLOCKED", true) ||
+                status.equals("LOCK_OFF", true) ||
+                status == "解锁" ||
+                status == "开"
+    }
+
+    private fun isLockClosed(status: String?): Boolean {
+        return status.equals("LOCKED", true) ||
+                status.equals("LOCK_ON", true) ||
+                status == "上锁" ||
+                status == "关"
+    }
+
+    private fun isOn(status: String?): Boolean {
+        return status.equals("ON", true) ||
+                status == "开启" ||
+                status == "启动" ||
+                status == "开"
+    }
+
+    private fun isOff(status: String?): Boolean {
+        return status.equals("OFF", true) ||
+                status == "关闭" ||
+                status == "关"
+    }
+
+    private fun isWindowOpen(status: String?): Boolean {
+        return status.equals("OPEN", true) ||
+                status == "打开" ||
+                status == "开"
+    }
+
+    private fun isWindowClosed(status: String?): Boolean {
+        return status.equals("CLOSED", true) ||
+                status.equals("CLOSE", true) ||
+                status == "关闭" ||
+                status == "关"
     }
 
     private fun onlineText(onlineStatus: Int?): String {
@@ -307,12 +402,12 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
 
     private fun buildControlHint(state: ControlUiState): String {
         return when {
-            state.selectedVehicleId.isNullOrBlank() -> "请先在主页中选择当前车辆"
-            state.isLoading -> "正在同步车辆状态…"
+            state.selectedVehicleId.isNullOrBlank() -> "请先在主页选择当前车辆"
+            state.isLoading -> "正在同步车辆状态"
             state.pendingCommandType != null -> "正在执行：${commandDisplayName(state.pendingCommandType)}"
-            state.isPolling -> "正在等待车辆返回操作结果…"
-            state.onlineStatus == 0 -> "车辆当前离线，远程控制按钮已禁用。请先启动车机或等待车辆上线"
-            else -> "车辆在线，可执行远程控制操作"
+            state.isPolling -> "正在等待车辆返回结果"
+            state.onlineStatus == 0 -> "当前离线，暂不可使用控制功能"
+            else -> "当前在线，可以远程控制"
         }
     }
 
@@ -336,14 +431,14 @@ class ControlFragment : Fragment(R.layout.fragment_control) {
 
     private fun commandDisplayName(commandType: String?): String {
         return when (commandType) {
-            "LOCK_ON" -> "上锁"
-            "LOCK_OFF" -> "解锁"
-            "HVAC_ON" -> "开启空调"
-            "HVAC_OFF" -> "关闭空调"
-            "WINDOW_OPEN" -> "打开车窗"
-            "WINDOW_CLOSE" -> "关闭车窗"
-            "ENGINE_ON" -> "启动发动机"
-            "ENGINE_OFF" -> "关闭发动机"
+            "LOCK_ON" -> "车锁关"
+            "LOCK_OFF" -> "车锁开"
+            "HVAC_ON" -> "空调开"
+            "HVAC_OFF" -> "空调关"
+            "WINDOW_OPEN" -> "车窗开"
+            "WINDOW_CLOSE" -> "车窗关"
+            "ENGINE_ON" -> "发动机开"
+            "ENGINE_OFF" -> "发动机关"
             "STATUS_QUERY" -> "状态查询"
             else -> commandType ?: "-"
         }
