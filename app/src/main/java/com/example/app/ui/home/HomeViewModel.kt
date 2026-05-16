@@ -30,17 +30,14 @@ class HomeViewModel(
     fun loadHomeData() {
         viewModelScope.launch {
             val current = _uiState.value ?: HomeUiState()
-
-            _uiState.value = current.copy(
-                isLoading = true,
-                errorMessage = null
-            )
+            _uiState.value = current.copy(isLoading = true, errorMessage = null)
 
             when (val vehicleResult = vehicleRepository.getVehicles()) {
                 is ResultState.Success -> {
                     val vehicles = vehicleResult.data
 
                     if (vehicles.isEmpty()) {
+                        vehicleRepository.clearSelectedVehicle()
                         _uiState.value = HomeUiState(
                             isLoading = false,
                             vehicles = emptyList(),
@@ -52,9 +49,7 @@ class HomeViewModel(
                     }
 
                     val savedVehicleId = vehicleRepository.getSelectedVehicleId()
-                    val selectedVehicle = vehicles.firstOrNull { it.vehicleId == savedVehicleId }
-                        ?: vehicles.first()
-
+                    val selectedVehicle = vehicles.firstOrNull { it.vehicleId == savedVehicleId } ?: vehicles.first()
                     vehicleRepository.saveSelectedVehicleId(selectedVehicle.vehicleId)
 
                     when (val stateResult = vehicleRepository.getVehicleState(selectedVehicle.vehicleId)) {
@@ -68,7 +63,6 @@ class HomeViewModel(
                                 errorMessage = null
                             )
                         }
-
                         is ResultState.Error -> {
                             _uiState.value = HomeUiState(
                                 isLoading = false,
@@ -79,23 +73,100 @@ class HomeViewModel(
                                 errorMessage = stateResult.message
                             )
                         }
-
-                        ResultState.Loading -> {
-                            _uiState.value = current.copy(isLoading = true)
-                        }
+                        ResultState.Loading -> _uiState.value = current.copy(isLoading = true)
                     }
                 }
-
                 is ResultState.Error -> {
-                    _uiState.value = current.copy(
-                        isLoading = false,
-                        errorMessage = vehicleResult.message
-                    )
+                    _uiState.value = current.copy(isLoading = false, errorMessage = vehicleResult.message)
                 }
+                ResultState.Loading -> _uiState.value = current.copy(isLoading = true)
+            }
+        }
+    }
 
-                ResultState.Loading -> {
-                    _uiState.value = current.copy(isLoading = true)
+    fun requestBindVehicle(vehicleId: String, onResult: (Boolean, String, String?) -> Unit) {
+        val trimmedVehicleId = vehicleId.trim()
+        if (trimmedVehicleId.isBlank()) {
+            onResult(false, "车辆ID不能为空", null)
+            return
+        }
+
+        viewModelScope.launch {
+            when (val result = vehicleRepository.requestBindVehicle(trimmedVehicleId)) {
+                is ResultState.Success -> {
+                    val requestId = result.data.requestId
+                    onResult(true, result.data.statusText ?: "申请已提交，请等待后台审批", requestId)
                 }
+                is ResultState.Error -> onResult(false, result.message, null)
+                ResultState.Loading -> Unit
+            }
+        }
+    }
+
+    fun verifyBindVehicle(requestId: String, code: String, onResult: (Boolean, String) -> Unit) {
+        val trimmedRequestId = requestId.trim()
+        val trimmedCode = code.trim()
+        if (trimmedRequestId.isBlank()) {
+            onResult(false, "申请ID不能为空")
+            return
+        }
+        if (trimmedCode.isBlank()) {
+            onResult(false, "验证码不能为空")
+            return
+        }
+
+        viewModelScope.launch {
+            when (val result = vehicleRepository.verifyBindVehicle(trimmedRequestId, trimmedCode)) {
+                is ResultState.Success -> {
+                    onResult(true, result.data.statusText ?: "车辆绑定成功")
+                    loadHomeData()
+                }
+                is ResultState.Error -> onResult(false, result.message)
+                ResultState.Loading -> Unit
+            }
+        }
+    }
+
+    fun requestUnbindVehicle(vehicleId: String, onResult: (Boolean, String, String?) -> Unit) {
+        val trimmedVehicleId = vehicleId.trim()
+        if (trimmedVehicleId.isBlank()) {
+            onResult(false, "当前没有可解绑车辆", null)
+            return
+        }
+
+        viewModelScope.launch {
+            when (val result = vehicleRepository.requestUnbindVehicle(trimmedVehicleId)) {
+                is ResultState.Success -> {
+                    val requestId = result.data.requestId
+                    onResult(true, result.data.statusText ?: "解绑申请已提交，请等待后台审批", requestId)
+                }
+                is ResultState.Error -> onResult(false, result.message, null)
+                ResultState.Loading -> Unit
+            }
+        }
+    }
+
+    fun verifyUnbindVehicle(requestId: String, code: String, onResult: (Boolean, String) -> Unit) {
+        val trimmedRequestId = requestId.trim()
+        val trimmedCode = code.trim()
+        if (trimmedRequestId.isBlank()) {
+            onResult(false, "申请ID不能为空")
+            return
+        }
+        if (trimmedCode.isBlank()) {
+            onResult(false, "验证码不能为空")
+            return
+        }
+
+        viewModelScope.launch {
+            when (val result = vehicleRepository.verifyUnbindVehicle(trimmedRequestId, trimmedCode)) {
+                is ResultState.Success -> {
+                    vehicleRepository.clearSelectedVehicle()
+                    onResult(true, result.data.statusText ?: "车辆解绑成功")
+                    loadHomeData()
+                }
+                is ResultState.Error -> onResult(false, result.message)
+                ResultState.Loading -> Unit
             }
         }
     }
@@ -125,7 +196,6 @@ class HomeViewModel(
                         errorMessage = null
                     )
                 }
-
                 is ResultState.Error -> {
                     val latest = _uiState.value ?: current
                     _uiState.value = latest.copy(
@@ -134,7 +204,6 @@ class HomeViewModel(
                         errorMessage = result.message
                     )
                 }
-
                 ResultState.Loading -> Unit
             }
         }
@@ -145,57 +214,32 @@ class HomeViewModel(
         val selectedVehicleId = current.selectedVehicleId ?: return
 
         viewModelScope.launch {
-            _uiState.value = current.copy(
-                isRefreshingCurrent = true,
-                errorMessage = null
-            )
-
+            _uiState.value = current.copy(isRefreshingCurrent = true, errorMessage = null)
             refreshSelectedVehicleStateInternal(selectedVehicleId, current)
         }
     }
 
-    /*
-     * 首页刷新按钮专用：
-     * 先发送 STATUS_QUERY，让后端生成“状态查询”操作历史；
-     * 然后再读取一次车辆状态，用于刷新首页展示。
-     */
     fun sendStatusQueryAndRefresh() {
         val current = _uiState.value ?: return
         val selectedVehicleId = current.selectedVehicleId
 
         if (selectedVehicleId.isNullOrBlank()) {
-            _uiState.value = current.copy(
-                errorMessage = "当前没有已绑定车辆"
-            )
+            _uiState.value = current.copy(errorMessage = "当前没有已绑定车辆")
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = current.copy(
-                isRefreshingCurrent = true,
-                errorMessage = null
-            )
-
+            _uiState.value = current.copy(isRefreshingCurrent = true, errorMessage = null)
             var commandError: String? = null
 
             when (val commandResult = commandRepository.submitCommand(selectedVehicleId, "STATUS_QUERY")) {
-                is ResultState.Success -> {
-                    commandError = null
-                }
-
-                is ResultState.Error -> {
-                    commandError = commandResult.message
-                }
-
+                is ResultState.Success -> commandError = null
+                is ResultState.Error -> commandError = commandResult.message
                 ResultState.Loading -> Unit
             }
 
             val latest = _uiState.value ?: current
-            refreshSelectedVehicleStateInternal(
-                selectedVehicleId = selectedVehicleId,
-                baseState = latest,
-                extraErrorMessage = commandError
-            )
+            refreshSelectedVehicleStateInternal(selectedVehicleId, latest, commandError)
         }
     }
 
@@ -220,7 +264,6 @@ class HomeViewModel(
                     errorMessage = extraErrorMessage
                 )
             }
-
             is ResultState.Error -> {
                 val latest = _uiState.value ?: baseState
                 _uiState.value = latest.copy(
@@ -228,7 +271,6 @@ class HomeViewModel(
                     errorMessage = extraErrorMessage ?: result.message
                 )
             }
-
             ResultState.Loading -> Unit
         }
     }

@@ -1,12 +1,16 @@
 package com.example.app.ui.home
 
 import android.animation.ObjectAnimator
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.LinearInterpolator
+import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -28,7 +32,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private lateinit var progressBar: ProgressBar
     private lateinit var tvStateBanner: TextView
-
     private lateinit var tvVehicleCount: TextView
 
     private lateinit var ivCurrentVehicleImage: ImageView
@@ -45,6 +48,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private lateinit var tvCurrentUpdatedTime: TextView
     private lateinit var ivRefreshCurrent: ImageView
     private lateinit var ivCurrentLocation: ImageView
+    private lateinit var btnBindVehicle: Button
+    private lateinit var btnUnbindVehicle: Button
 
     private lateinit var layoutOtherVehicleHeader: LinearLayout
     private lateinit var tvOtherVehicleTitle: TextView
@@ -94,7 +99,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private fun initViews(view: View) {
         progressBar = view.findViewById(R.id.progressBar)
         tvStateBanner = view.findViewById(R.id.tvStateBanner)
-
         tvVehicleCount = view.findViewById(R.id.tvVehicleCount)
 
         ivCurrentVehicleImage = view.findViewById(R.id.ivCurrentVehicleImage)
@@ -111,6 +115,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         tvCurrentUpdatedTime = view.findViewById(R.id.tvCurrentUpdatedTime)
         ivRefreshCurrent = view.findViewById(R.id.ivRefreshCurrent)
         ivCurrentLocation = view.findViewById(R.id.ivCurrentLocation)
+        btnBindVehicle = view.findViewById(R.id.btnBindVehicle)
+        btnUnbindVehicle = view.findViewById(R.id.btnUnbindVehicle)
 
         layoutOtherVehicleHeader = view.findViewById(R.id.layoutOtherVehicleHeader)
         tvOtherVehicleTitle = view.findViewById(R.id.tvOtherVehicleTitle)
@@ -139,6 +145,19 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             )
         }
 
+        btnBindVehicle.setOnClickListener {
+            showBindVehicleDialog()
+        }
+
+        btnUnbindVehicle.setOnClickListener {
+            val vehicleId = viewModel.uiState.value?.selectedVehicleId
+            if (vehicleId.isNullOrBlank()) {
+                Toast.makeText(requireContext(), "当前没有已绑定车辆", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            showUnbindVehicleDialog(vehicleId)
+        }
+
         layoutOtherVehicleHeader.setOnClickListener {
             toggleOtherVehicles()
         }
@@ -146,6 +165,84 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         tvToggleOtherVehiclesArrow.setOnClickListener {
             toggleOtherVehicles()
         }
+    }
+
+    private fun showBindVehicleDialog() {
+        val input = EditText(requireContext()).apply {
+            hint = "请输入车辆ID，例如 v001"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+            setPadding(40, 20, 40, 20)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("绑定车辆")
+            .setMessage("输入车辆ID后，需要后台在模拟车机管理台同意，并显示验证码。")
+            .setView(input)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("提交申请") { _, _ ->
+                val vehicleId = input.text.toString().trim()
+                viewModel.requestBindVehicle(vehicleId) { success, message, requestId ->
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                    if (success && !requestId.isNullOrBlank()) {
+                        showVerifyCodeDialog(requestId, isBind = true)
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun showUnbindVehicleDialog(vehicleId: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("解绑车辆")
+            .setMessage("确定要解绑当前车辆 $vehicleId 吗？解绑也需要后台同意并输入验证码。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("提交解绑申请") { _, _ ->
+                viewModel.requestUnbindVehicle(vehicleId) { success, message, requestId ->
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                    if (success && !requestId.isNullOrBlank()) {
+                        showVerifyCodeDialog(requestId, isBind = false)
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun showVerifyCodeDialog(requestId: String, isBind: Boolean) {
+        val input = EditText(requireContext()).apply {
+            hint = "请输入后台页面显示的6位验证码"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            setPadding(40, 20, 40, 20)
+        }
+
+        val title = if (isBind) "输入绑定验证码" else "输入解绑验证码"
+        val message = "申请ID：$requestId\n请先让后台在 http://localhost:8080/mock-vehicle-console.html 同意申请，再填写验证码。"
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(title)
+            .setMessage(message)
+            .setView(input)
+            .setNegativeButton("稍后再填", null)
+            .setPositiveButton("提交验证码") { _, _ ->
+                val code = input.text.toString().trim()
+                if (isBind) {
+                    viewModel.verifyBindVehicle(requestId, code) { success, resultMessage ->
+                        Toast.makeText(requireContext(), resultMessage, Toast.LENGTH_LONG).show()
+                        if (success) {
+                            viewModel.loadHomeData()
+                        }
+                    }
+                } else {
+                    viewModel.verifyUnbindVehicle(requestId, code) { success, resultMessage ->
+                        Toast.makeText(requireContext(), resultMessage, Toast.LENGTH_LONG).show()
+                        if (success) {
+                            viewModel.loadHomeData()
+                        }
+                    }
+                }
+            }
+            .show()
     }
 
     private fun toggleOtherVehicles() {
@@ -159,8 +256,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun observeUiState() {
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            progressBar.visibility =
-                if (state.isLoading && state.vehicles.isEmpty()) View.VISIBLE else View.GONE
+            progressBar.visibility = if (state.isLoading && state.vehicles.isEmpty()) View.VISIBLE else View.GONE
 
             renderBanner(state)
             renderVehicleCount(state)
@@ -193,13 +289,11 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 tvStateBanner.text = "提示：${UiStateTextResolver.resolveError(state.errorMessage)}"
                 tvStateBanner.setBackgroundResource(R.drawable.bg_notice_info)
             }
-
             state.vehicles.isEmpty() -> {
                 tvStateBanner.visibility = View.VISIBLE
                 tvStateBanner.text = UiStateTextResolver.homeEmptyMessage()
                 tvStateBanner.setBackgroundResource(R.drawable.bg_notice_empty)
             }
-
             else -> {
                 tvStateBanner.visibility = View.GONE
             }
@@ -222,10 +316,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val brand = selectedState?.brand ?: selectedVehicle?.brand ?: ""
         val model = selectedState?.model ?: selectedVehicle?.model ?: ""
 
-        val brandModelText = listOf(brand, model)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-            .ifBlank { "-" }
+        val brandModelText = listOf(brand, model).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "-" }
 
         val onlineText = when (selectedState?.onlineStatus ?: selectedVehicle?.onlineStatus) {
             1 -> "在线"
@@ -258,6 +349,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val hasSelectedVehicle = !state.selectedVehicleId.isNullOrBlank()
         ivCurrentLocation.isEnabled = hasSelectedVehicle
         ivCurrentLocation.alpha = if (hasSelectedVehicle) 1f else 0.45f
+        btnUnbindVehicle.isEnabled = hasSelectedVehicle
+        btnUnbindVehicle.alpha = if (hasSelectedVehicle) 1f else 0.45f
     }
 
     private fun renderRefreshState(state: HomeUiState) {
@@ -267,21 +360,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
         if (state.isRefreshingCurrent) {
             if (refreshAnimator == null) {
-                refreshAnimator = ObjectAnimator.ofFloat(
-                    ivRefreshCurrent,
-                    View.ROTATION,
-                    0f,
-                    360f
-                ).apply {
+                refreshAnimator = ObjectAnimator.ofFloat(ivRefreshCurrent, View.ROTATION, 0f, 360f).apply {
                     duration = 700
                     repeatCount = ObjectAnimator.INFINITE
                     interpolator = LinearInterpolator()
                 }
             }
-
-            if (refreshAnimator?.isStarted != true) {
-                refreshAnimator?.start()
-            }
+            if (refreshAnimator?.isStarted != true) refreshAnimator?.start()
         } else {
             refreshAnimator?.cancel()
             ivRefreshCurrent.rotation = 0f
@@ -314,10 +399,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             val ivLocation = itemView.findViewById<ImageView>(R.id.ivLocation)
 
             val displayName = vehicle.name.ifBlank { vehicle.vehicleId }
-            val brandModelText = listOfNotNull(vehicle.brand, vehicle.model)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-                .ifBlank { "-" }
+            val brandModelText = listOfNotNull(vehicle.brand, vehicle.model).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "-" }
 
             val onlineText = when (vehicle.onlineStatus) {
                 1 -> "在线"
@@ -388,11 +470,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
 
         val drawableName = "vehicle_${vehicleId.lowercase()}"
-        val drawableId = resources.getIdentifier(
-            drawableName,
-            "drawable",
-            requireContext().packageName
-        )
+        val drawableId = resources.getIdentifier(drawableName, "drawable", requireContext().packageName)
 
         if (drawableId != 0) {
             target.setImageResource(drawableId)
@@ -406,7 +484,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 File(imageDir, "$vehicleId.jpeg"),
                 File(imageDir, "$vehicleId.png")
             )
-
             val imageFile = candidates.firstOrNull { it.exists() && it.isFile }
             if (imageFile != null) {
                 val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
@@ -422,7 +499,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun buildOtherVehicleSignature(state: HomeUiState): String {
         val otherVehicles = state.vehicles.filter { it.vehicleId != state.selectedVehicleId }
-
         return buildString {
             otherVehicles.forEach { vehicle ->
                 append(vehicle.vehicleId)
